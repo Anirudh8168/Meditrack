@@ -212,8 +212,14 @@ def profile_completed_q():
     )
 
 
+from datetime import datetime, date
+
 def compute_age(dob):
-    if not dob:
-        return None
+    if isinstance(dob, str):
+        dob = datetime.strptime(dob, "%Y-%m-%d").date()
+
     today = date.today()
-    return today.year - dob.year - ((today.month, today.day) < (dob.month, dob.day))
+
+    return today.year - dob.year - (
+        (today.month, today.day) < (dob.month, dob.day)
+    )
