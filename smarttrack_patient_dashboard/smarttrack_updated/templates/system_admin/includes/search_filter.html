@@ -1,0 +1,32 @@
+<form method="GET" class="admin-filter-bar">
+  {% if show_search != False %}
+  <input type="text" name="q" value="{{ q|default:'' }}" placeholder="{{ search_placeholder|default:'Search...' }}" class="admin-input w-full sm:w-56">
+  {% endif %}
+  {% if filter_type == 'patient' %}
+  <select name="status" class="admin-input">
+    <option value="">All</option>
+    <option value="active" {% if status == 'active' %}selected{% endif %}>Active</option>
+    <option value="inactive" {% if status == 'inactive' %}selected{% endif %}>Inactive</option>
+    <option value="suspended" {% if status == 'suspended' %}selected{% endif %}>Suspended</option>
+  </select>
+  {% elif filter_type == 'doctor' %}
+  <select name="status" class="admin-input">
+    <option value="">All</option>
+    <option value="active" {% if status == 'active' %}selected{% endif %}>Active</option>
+    <option value="suspended" {% if status == 'suspended' %}selected{% endif %}>Suspended</option>
+  </select>
+  {% elif filter_type == 'family' %}
+  <select name="status" class="admin-input">
+    <option value="">All</option>
+    <option value="active" {% if status == 'active' %}selected{% endif %}>Active</option>
+    <option value="inactive" {% if status == 'inactive' %}selected{% endif %}>No Account</option>
+  </select>
+  {% endif %}
+  {% if view_param %}
+  <input type="hidden" name="view" value="{{ view_param }}">
+  {% endif %}
+  <button type="submit" class="admin-btn-primary"><i class="fas fa-search mr-1"></i> Filter</button>
+  {% if q or status %}
+  <a href="{% if clear_url %}{{ clear_url }}{% else %}{{ request.path }}{% if view_param %}?view={{ view_param }}{% endif %}{% endif %}" class="text-sm text-slate-500 hover:text-slate-700 font-medium px-2">Clear</a>
+  {% endif %}
+</form>

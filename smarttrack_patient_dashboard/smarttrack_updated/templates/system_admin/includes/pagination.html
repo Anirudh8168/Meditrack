@@ -1,0 +1,15 @@
+{% if page and page.paginator.num_pages > 1 %}
+<div class="flex items-center justify-between mt-4 pt-4 border-t border-slate-100">
+  <p class="text-sm text-slate-500">Page {{ page.number }} of {{ page.paginator.num_pages }} · {{ page.paginator.count }} records</p>
+  <div class="flex gap-2">
+    {% if page.has_previous %}
+    <a href="?page={{ page.previous_page_number }}{% if q %}&q={{ q }}{% endif %}{% if status %}&status={{ status }}{% endif %}{% if view %}&view={{ view }}{% endif %}{% if level %}&level={{ level }}{% endif %}"
+       class="px-3 py-1.5 bg-white border border-slate-200 rounded-lg text-sm hover:bg-slate-50">Previous</a>
+    {% endif %}
+    {% if page.has_next %}
+    <a href="?page={{ page.next_page_number }}{% if q %}&q={{ q }}{% endif %}{% if status %}&status={{ status }}{% endif %}{% if view %}&view={{ view }}{% endif %}{% if level %}&level={{ level }}{% endif %}"
+       class="px-3 py-1.5 bg-indigo-600 text-white rounded-lg text-sm hover:bg-indigo-700">Next</a>
+    {% endif %}
+  </div>
+</div>
+{% endif %}

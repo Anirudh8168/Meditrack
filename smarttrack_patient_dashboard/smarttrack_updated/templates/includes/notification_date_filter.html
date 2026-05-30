@@ -1,0 +1,44 @@
+{% comment %}
+  Expects: notif_preset, notif_date_from, notif_date_to, filter_query (optional)
+{% endcomment %}
+<div class="notification-date-filter p-4 bg-slate-50 border border-slate-100 rounded-xl">
+  <form method="get" action="/notifications/" class="flex flex-col gap-3">
+    {% for key, value in request.GET.items %}
+      {% if key != 'from_date' and key != 'to_date' and key != 'preset' and key != 'page' %}
+      <input type="hidden" name="{{ key }}" value="{{ value }}">
+      {% endif %}
+    {% endfor %}
+    <div class="flex flex-wrap items-end gap-3">
+      <div>
+        <label class="block text-[10px] font-semibold text-slate-500 uppercase mb-1">From</label>
+        <input type="date" name="from_date" value="{{ notif_date_from|date:'Y-m-d' }}"
+          class="px-3 py-2 bg-white border border-slate-200 rounded-lg text-sm focus:ring-2 focus:ring-blue-400">
+      </div>
+      <div>
+        <label class="block text-[10px] font-semibold text-slate-500 uppercase mb-1">To</label>
+        <input type="date" name="to_date" value="{{ notif_date_to|date:'Y-m-d' }}"
+          class="px-3 py-2 bg-white border border-slate-200 rounded-lg text-sm focus:ring-2 focus:ring-blue-400">
+      </div>
+      <button type="submit" class="px-4 py-2 bg-blue-600 text-white text-sm font-semibold rounded-lg hover:bg-blue-700">
+        Apply Filter
+      </button>
+      <a href="/notifications/?preset=today" class="px-4 py-2 bg-slate-200 text-slate-700 text-sm font-semibold rounded-lg hover:bg-slate-300 text-center">
+        Reset
+      </a>
+    </div>
+    <div class="flex flex-wrap gap-2">
+      <a href="/notifications/?preset=today{% if filter_type %}&type={{ filter_type }}{% endif %}{% if filter_show == 'unread' %}&show=unread{% endif %}{% if filter_search %}&q={{ filter_search|urlencode }}{% endif %}"
+        class="px-3 py-1.5 text-xs font-semibold rounded-full {% if notif_preset == 'today' %}bg-blue-600 text-white{% else %}bg-white border border-slate-200 text-slate-600 hover:bg-slate-100{% endif %}">Today</a>
+      <a href="/notifications/?preset=yesterday{% if filter_type %}&type={{ filter_type }}{% endif %}{% if filter_show == 'unread' %}&show=unread{% endif %}{% if filter_search %}&q={{ filter_search|urlencode }}{% endif %}"
+        class="px-3 py-1.5 text-xs font-semibold rounded-full {% if notif_preset == 'yesterday' %}bg-blue-600 text-white{% else %}bg-white border border-slate-200 text-slate-600 hover:bg-slate-100{% endif %}">Yesterday</a>
+      <a href="/notifications/?preset=last7{% if filter_type %}&type={{ filter_type }}{% endif %}{% if filter_show == 'unread' %}&show=unread{% endif %}{% if filter_search %}&q={{ filter_search|urlencode }}{% endif %}"
+        class="px-3 py-1.5 text-xs font-semibold rounded-full {% if notif_preset == 'last7' %}bg-blue-600 text-white{% else %}bg-white border border-slate-200 text-slate-600 hover:bg-slate-100{% endif %}">Last 7 Days</a>
+      <a href="/notifications/?preset=month{% if filter_type %}&type={{ filter_type }}{% endif %}{% if filter_show == 'unread' %}&show=unread{% endif %}{% if filter_search %}&q={{ filter_search|urlencode }}{% endif %}"
+        class="px-3 py-1.5 text-xs font-semibold rounded-full {% if notif_preset == 'month' %}bg-blue-600 text-white{% else %}bg-white border border-slate-200 text-slate-600 hover:bg-slate-100{% endif %}">This Month</a>
+      <a href="/notifications/?preset=lastmonth{% if filter_type %}&type={{ filter_type }}{% endif %}{% if filter_show == 'unread' %}&show=unread{% endif %}{% if filter_search %}&q={{ filter_search|urlencode }}{% endif %}"
+        class="px-3 py-1.5 text-xs font-semibold rounded-full {% if notif_preset == 'lastmonth' %}bg-blue-600 text-white{% else %}bg-white border border-slate-200 text-slate-600 hover:bg-slate-100{% endif %}">Last Month</a>
+      <a href="/notifications/?preset=all{% if filter_type %}&type={{ filter_type }}{% endif %}{% if filter_show == 'unread' %}&show=unread{% endif %}{% if filter_search %}&q={{ filter_search|urlencode }}{% endif %}"
+        class="px-3 py-1.5 text-xs font-semibold rounded-full {% if notif_preset == 'all' %}bg-blue-600 text-white{% else %}bg-white border border-slate-200 text-slate-600 hover:bg-slate-100{% endif %}">All</a>
+    </div>
+  </form>
+</div>

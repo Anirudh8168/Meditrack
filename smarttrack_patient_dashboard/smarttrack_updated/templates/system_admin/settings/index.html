@@ -1,0 +1,26 @@
+{% extends 'system_admin/base.html' %}
+{% block page_title %}Settings{% endblock %}
+{% block page_subtitle %}Platform configuration and preferences{% endblock %}
+{% block content %}
+<div class="max-w-xl animate-fade-in">
+  <div class="admin-panel">
+    <div class="admin-panel-header"><h3 class="font-bold text-slate-800 text-sm">System Settings</h3></div>
+    <form method="POST" class="admin-panel-body space-y-4">{% csrf_token %}
+      <p class="text-sm text-slate-500">Configure platform defaults. All changes are logged for audit compliance.</p>
+      <div>
+        <label class="text-xs font-semibold text-slate-500 uppercase tracking-wider">Platform Name</label>
+        <input value="SmartTrack Healthcare" class="admin-input w-full mt-1 bg-slate-50" readonly>
+      </div>
+      <div>
+        <label class="text-xs font-semibold text-slate-500 uppercase tracking-wider">Support Email</label>
+        <input value="support@smarttrack.com" class="admin-input w-full mt-1">
+      </div>
+      <div>
+        <label class="text-xs font-semibold text-slate-500 uppercase tracking-wider">Session Timeout (minutes)</label>
+        <input value="60" type="number" class="admin-input w-full mt-1">
+      </div>
+      <button type="submit" class="admin-btn-primary"><i class="fas fa-save mr-1"></i> Save Settings</button>
+    </form>
+  </div>
+</div>
+{% endblock %}

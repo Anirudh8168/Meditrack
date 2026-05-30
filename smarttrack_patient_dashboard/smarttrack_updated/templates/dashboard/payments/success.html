@@ -1,0 +1,44 @@
+{% extends 'base_dashboard.html' %}
+{% block title %}Payment Successful{% endblock %}
+{% block page_title %}Payment Successful{% endblock %}
+
+{% block content %}
+<div class="max-w-md mx-auto">
+  <a href="{% if user.role == 'doctor' %}/dashboard/doctor/{% elif user.role == 'patient' %}/dashboard/patient/{% else %}/appointments/{% endif %}"
+     class="inline-flex items-center gap-2 text-sm text-slate-500 hover:text-blue-600 font-semibold mb-5 transition">
+    <i class="fas fa-arrow-left"></i> Back to Dashboard
+  </a>
+
+  <div class="text-center">
+  <div class="bg-white rounded-3xl shadow-xl border border-emerald-100 p-8">
+    <div class="w-20 h-20 bg-emerald-100 rounded-full flex items-center justify-center mx-auto mb-4">
+      <i class="fas fa-check text-4xl text-emerald-600"></i>
+    </div>
+    <h2 class="text-2xl font-black text-slate-800 mb-1">Payment Successful</h2>
+    <p class="text-3xl font-black text-emerald-600 mb-4">₹{{ payment.amount }}</p>
+    <p class="text-sm text-slate-600 mb-6">Verified payment for consultation with<br><strong>Dr. {{ payment.doctor.get_full_name }}</strong></p>
+
+    <div class="bg-slate-50 rounded-xl p-4 text-left text-sm space-y-2 mb-6">
+      {% if payment.receipt_id %}
+      <div class="flex justify-between"><span class="text-slate-500">Receipt ID</span><span class="font-mono font-semibold">{{ payment.receipt_id }}</span></div>
+      {% endif %}
+      <div class="flex justify-between"><span class="text-slate-500">Transaction ID</span><span class="font-mono font-semibold">{{ payment.transaction_id }}</span></div>
+      <div class="flex justify-between"><span class="text-slate-500">Payment Method</span><span>{{ payment.get_payment_method_display }}</span></div>
+      <div class="flex justify-between"><span class="text-slate-500">Status</span><span class="text-emerald-600 font-bold">Paid</span></div>
+      <div class="flex justify-between"><span class="text-slate-500">Timestamp</span><span class="font-semibold">{{ payment.paid_at|date:"M j, Y g:i A" }}</span></div>
+      <div class="flex justify-between"><span class="text-slate-500">Type</span><span>{{ payment.appointment_type_display }}</span></div>
+    </div>
+
+    <div class="flex flex-col gap-2">
+      <a href="{% url 'download_receipt' payment.payment_id %}" class="w-full py-3 bg-emerald-600 text-white rounded-xl font-bold hover:bg-emerald-700 transition">
+        <i class="fas fa-download mr-2"></i> Download Receipt (PDF)
+      </a>
+      <a href="/appointments/detail/{{ payment.appointment_id }}/" class="w-full py-3 bg-slate-100 text-slate-700 rounded-xl font-semibold hover:bg-slate-200 transition">
+        View Appointment
+      </a>
+      <a href="{% url 'payment_history' %}" class="text-sm text-blue-600 hover:underline mt-2">View Payment History</a>
+    </div>
+  </div>
+  </div>
+</div>
+{% endblock %}

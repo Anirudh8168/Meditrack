@@ -1,0 +1,65 @@
+{% comment %}Dynamic risk prediction cards — expects risk object with dynamic_analysis{% endcomment %}
+{% if risk and risk.level != 'low' %}
+{% with dynamic=risk.dynamic_analysis %}
+<div class="space-y-3 mb-6">
+  {% if risk.level == 'high' or risk.level == 'critical' %}
+  <div class="p-4 rounded-2xl border {% if risk.level == 'critical' %}border-red-300 bg-red-50{% else %}border-amber-200 bg-amber-50/80{% endif %}">
+    <div class="flex items-start gap-3">
+      <div class="w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0 {% if risk.level == 'critical' %}bg-red-200 text-red-700{% else %}bg-amber-200 text-amber-800{% endif %}">
+        <i class="fas fa-exclamation-triangle"></i>
+      </div>
+      <div class="flex-1 min-w-0">
+        <h3 class="font-bold text-slate-800 text-sm">
+          {% if 'medication' in risk.risk_types %}💊 Medication Risk Increasing{% elif 'physical' in risk.risk_types %}🏃 Activity Risk Detected{% else %}⚠ Health Risk Alert{% endif %}
+        </h3>
+        <p class="text-sm text-slate-700 mt-1">{{ risk.patient_message|default:risk.level_message }}</p>
+        {% if dynamic.prediction_summary or risk.prediction_summary %}
+        <p class="text-xs text-slate-600 mt-2"><strong>Possible impact:</strong> {{ dynamic.prediction_summary|default:risk.prediction_summary }}</p>
+        {% endif %}
+        {% if risk.recommended_actions %}
+        <p class="text-xs text-blue-700 mt-2 font-semibold"><i class="fas fa-lightbulb mr-1"></i>{{ risk.recommended_actions.0 }}</p>
+        {% endif %}
+      </div>
+      <span class="text-[10px] px-2 py-1 rounded-full font-bold uppercase shrink-0
+        {% if risk.level == 'critical' %}bg-red-600 text-white{% elif risk.level == 'high' %}bg-red-500 text-white{% else %}bg-amber-500 text-white{% endif %}">
+        {{ risk.level }}
+      </span>
+    </div>
+  </div>
+  {% elif risk.level == 'medium' %}
+  <div class="p-4 rounded-2xl border border-amber-100 bg-amber-50/50">
+    <p class="text-sm font-semibold text-amber-900"><i class="fas fa-info-circle mr-1"></i> {{ risk.patient_message|default:risk.level_message }}</p>
+    {% if dynamic.prediction_summary %}
+    <p class="text-xs text-amber-800 mt-1">{{ dynamic.prediction_summary }}</p>
+    {% endif %}
+  </div>
+  {% endif %}
+
+  {% if dynamic.health_consequence %}
+  <div class="p-4 rounded-2xl border border-red-200 bg-gradient-to-r from-red-50 to-orange-50">
+    <h3 class="font-bold text-red-800 text-sm mb-2"><i class="fas fa-heartbeat mr-1"></i> {{ dynamic.health_consequence.title|default:"Health Alert" }}</h3>
+    <p class="text-sm text-slate-800">{{ dynamic.health_consequence.message }}</p>
+    {% if dynamic.health_consequence.possible_effects %}
+    <p class="text-xs font-semibold text-slate-600 mt-3 mb-1">Possible effects:</p>
+    <ul class="text-xs text-slate-700 space-y-1">
+      {% for eff in dynamic.health_consequence.possible_effects %}
+      <li>• {{ eff }}</li>
+      {% endfor %}
+    </ul>
+    {% endif %}
+    <p class="text-xs text-red-700 font-semibold mt-3">Please resume medicines immediately.</p>
+  </div>
+  {% endif %}
+
+  {% for insight in risk.medicine_insights %}
+  {% if insight.consecutive_misses >= 2 %}
+  <div class="p-3 rounded-xl bg-white border border-slate-100 text-sm">
+    <div class="font-semibold text-slate-800">{{ insight.medicine }} · {{ insight.consecutive_misses }} consecutive misses</div>
+    <div class="text-xs text-slate-500 mt-0.5">{{ insight.category_label }}</div>
+    <div class="text-xs text-red-700 mt-1">{{ insight.predicted_risk }}</div>
+  </div>
+  {% endif %}
+  {% endfor %}
+</div>
+{% endwith %}
+{% endif %}

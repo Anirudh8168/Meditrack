@@ -1,0 +1,67 @@
+<aside id="adminSidebar" class="admin-sidebar fixed left-0 top-0 h-full w-64 bg-gradient-to-b from-slate-900 via-slate-900 to-slate-950 text-white z-50 flex flex-col shadow-2xl overflow-y-auto">
+  <div class="p-5 border-b border-slate-700/60">
+    <div class="flex items-center gap-3">
+      <div class="w-10 h-10 bg-gradient-to-br from-blue-500 to-violet-600 rounded-xl flex items-center justify-center shadow-lg shadow-blue-500/20">
+        <i class="fas fa-heartbeat text-white"></i>
+      </div>
+      <div>
+        <div class="font-bold text-white tracking-tight">SmartTrack</div>
+        <div class="text-[11px] text-slate-400 font-medium">Enterprise Admin</div>
+      </div>
+    </div>
+  </div>
+
+  <nav class="flex-1 p-3 space-y-1">
+    {% with p=request.path q=request.GET %}
+
+    <a href="{% url 'system_admin_dashboard' %}" class="admin-nav-link {% if p == '/system-admin/' %}active{% endif %}">
+      <i class="fas fa-chart-pie"></i> Dashboard
+    </a>
+
+    <button type="button" data-nav-group="navUsers" class="admin-nav-group-toggle {% if '/patients' in p or '/doctors' in p or '/caregivers' in p or '/family' in p %}open{% endif %}">
+      <span class="flex items-center gap-3"><i class="fas fa-users-cog w-[18px] text-center"></i> User Management</span>
+      <i class="fas fa-chevron-right chevron"></i>
+    </button>
+    <div id="navUsers" class="admin-nav-sub space-y-0.5 mb-1 {% if '/patients' not in p and '/doctors' not in p and '/caregivers' not in p and '/family' not in p %}hidden{% endif %}">
+      <a href="{% url 'system_admin_patients' %}" class="admin-nav-link {% if '/patients' in p %}active{% endif %}"><i class="fas fa-hospital-user"></i> Patients</a>
+      <a href="{% url 'system_admin_doctors' %}" class="admin-nav-link {% if '/doctors' in p %}active{% endif %}"><i class="fas fa-user-md"></i> Doctors</a>
+      <a href="{% url 'system_admin_caregivers' %}" class="admin-nav-link {% if '/caregivers' in p %}active{% endif %}"><i class="fas fa-hand-holding-heart"></i> Caregivers</a>
+      <a href="{% url 'system_admin_family' %}" class="admin-nav-link {% if '/family' in p %}active{% endif %}"><i class="fas fa-people-roof"></i> Family Members</a>
+    </div>
+
+    <button type="button" data-nav-group="navAppointments" class="admin-nav-group-toggle {% if '/appointments' in p %}open{% endif %}">
+      <span class="flex items-center gap-3"><i class="fas fa-calendar-check w-[18px] text-center"></i> Appointments</span>
+      <i class="fas fa-chevron-right chevron"></i>
+    </button>
+    <div id="navAppointments" class="admin-nav-sub space-y-0.5 mb-1 {% if '/appointments' not in p %}hidden{% endif %}">
+      <a href="{% url 'system_admin_appointments' %}?view=scheduled" class="admin-nav-link {% if '/appointments' in p and q.view == 'scheduled' %}active{% elif '/appointments' in p and not q.view and not q.emergency %}active{% endif %}"><i class="fas fa-clock"></i> Scheduled</a>
+      <a href="{% url 'system_admin_appointments' %}?view=completed" class="admin-nav-link {% if q.view == 'completed' %}active{% endif %}"><i class="fas fa-check-circle"></i> Completed</a>
+      <a href="{% url 'system_admin_appointments' %}?view=cancelled" class="admin-nav-link {% if q.view == 'cancelled' %}active{% endif %}"><i class="fas fa-ban"></i> Cancelled</a>
+      <a href="{% url 'system_admin_appointments' %}?view=emergency" class="admin-nav-link {% if q.view == 'emergency' %}active{% endif %}"><i class="fas fa-truck-medical"></i> Emergency</a>
+    </div>
+
+    <a href="{% url 'system_admin_reports' %}" class="admin-nav-link {% if '/reports' in p %}active{% endif %}">
+      <i class="fas fa-chart-line"></i> Reports &amp; Analytics
+    </a>
+
+    <a href="{% url 'system_admin_payments' %}" class="admin-nav-link {% if '/payments' in p %}active{% endif %}">
+      <i class="fas fa-credit-card"></i> Payments
+    </a>
+
+    <a href="{% url 'system_admin_settings' %}" class="admin-nav-link {% if '/settings' in p %}active{% endif %}">
+      <i class="fas fa-gear"></i> Settings
+    </a>
+
+    <a href="{% url 'system_admin_profile' %}" class="admin-nav-link {% if '/profile' in p %}active{% endif %}">
+      <i class="fas fa-user-shield"></i> Profile
+    </a>
+
+    <div class="pt-3 mt-3 border-t border-slate-700/60">
+      <a href="{% url 'system_admin_logout' %}" class="admin-nav-link logout">
+        <i class="fas fa-sign-out-alt"></i> Logout
+      </a>
+    </div>
+
+    {% endwith %}
+  </nav>
+</aside>

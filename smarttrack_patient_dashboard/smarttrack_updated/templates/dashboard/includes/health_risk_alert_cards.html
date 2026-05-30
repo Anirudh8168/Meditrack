@@ -1,0 +1,43 @@
+{# Reusable high-risk alert card — family, caregiver, doctor dashboards #}
+{% for alert in risk_alerts %}
+<div class="bg-white rounded-2xl border {% if alert.escalation_level >= 4 %}border-red-300 bg-red-50/30{% else %}border-rose-200{% endif %} shadow-sm overflow-hidden">
+  <div class="px-5 py-3 {% if alert.escalation_level >= 4 %}bg-red-600{% else %}bg-gradient-to-r from-rose-600 to-red-600{% endif %} text-white flex items-center justify-between gap-2">
+    <div class="flex items-center gap-2">
+      <i class="fas fa-exclamation-triangle"></i>
+      <span class="font-bold text-sm">
+        {% if alert.escalation_level >= 4 %}Emergency Alert{% else %}High Risk Alert{% endif %}
+      </span>
+    </div>
+    <span class="text-[10px] px-2 py-0.5 rounded-full bg-white/20 font-bold uppercase">{{ alert.severity_label }}</span>
+  </div>
+  <div class="p-5">
+    <div class="font-bold text-slate-800 mb-1">Patient: {{ alert.patient.get_full_name }}</div>
+    <p class="text-sm text-slate-600 mb-2">{{ alert.reason }}</p>
+    <p class="text-sm text-red-700 mb-3">{{ alert.message|truncatewords:40 }}</p>
+    <div class="text-xs text-slate-500 mb-4 flex flex-wrap gap-x-3 gap-y-1">
+      <span><i class="far fa-clock mr-1"></i>{{ alert.sent_at|time:"g:i A" }}</span>
+      {% if alert.doctor_name %}<span><i class="fas fa-user-md mr-1"></i>Dr. {{ alert.doctor_name }}</span>{% endif %}
+      <span><i class="fas fa-pills mr-1"></i>{{ alert.medicines_missed_count }} missed (3 days)</span>
+    </div>
+    <div class="flex flex-wrap gap-2">
+      <a href="{% if user.role == 'doctor' %}/dashboard/doctor/patient/{{ alert.patient_id }}/{% elif user.role == 'caregiver' %}/dashboard/caregiver/patient/{{ alert.patient_id }}/{% else %}/messages/?with={{ alert.patient_id }}{% endif %}"
+         class="text-xs px-3 py-2 rounded-xl bg-slate-800 text-white font-semibold hover:bg-slate-900 transition">
+        View Details
+      </a>
+      {% if alert.patient_phone %}
+      <a href="tel:{{ alert.patient_phone }}"
+         class="text-xs px-3 py-2 rounded-xl bg-blue-600 text-white font-semibold hover:bg-blue-700 transition">
+        Contact Patient
+      </a>
+      {% endif %}
+      {% if alert.emergency_phone %}
+      <a href="tel:{{ alert.emergency_phone }}"
+         class="text-xs px-3 py-2 rounded-xl bg-red-600 text-white font-semibold hover:bg-red-700 transition">
+        Call Emergency Contact
+      </a>
+      {% endif %}
+    </div>
+  </div>
+</div>
+{% empty %}
+{% endfor %}

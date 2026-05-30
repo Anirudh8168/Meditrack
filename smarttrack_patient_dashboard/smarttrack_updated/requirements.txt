@@ -1,0 +1,14 @@
+Django==4.2.9
+Pillow==10.2.0
+reportlab==4.1.0
+mysqlclient==2.2.4
+django-crispy-forms==2.1
+crispy-bootstrap5==0.7
+channels==4.0.0
+channels-redis==4.2.0
+celery==5.3.6
+redis==5.0.1
+django-celery-beat==2.5.0
+whitenoise==6.6.0
+polib==1.2.0
+razorpay==1.4.2

@@ -1,0 +1,186 @@
+{% extends 'base_dashboard.html' %}
+{% block title %}Caregiver Settings{% endblock %}
+{% block page_title %}Profile Settings{% endblock %}
+
+{% block content %}
+<div class="max-w-4xl mx-auto p-6">
+    <div class="mb-6 flex items-center justify-between">
+        <h2 class="text-2xl font-bold text-slate-800">Account & Profile Settings</h2>
+        <a href="/dashboard/caregiver/" class="text-sm text-slate-500 hover:text-slate-800 transition"><i class="fas fa-arrow-left mr-1"></i> Back to Dashboard</a>
+    </div>
+
+    <div class="grid grid-cols-1 lg:grid-cols-3 gap-8">
+        <!-- Sidebar -->
+        <div class="space-y-2">
+            <a href="#profile" class="flex items-center gap-3 p-3 bg-white rounded-xl border border-slate-100 text-slate-600 hover:bg-slate-50 transition font-medium text-sm">
+                <i class="fas fa-user-circle w-5 text-center"></i> Personal Details
+            </a>
+            <a href="#security" class="flex items-center gap-3 p-3 bg-white rounded-xl border border-slate-100 text-slate-600 hover:bg-slate-50 transition font-medium text-sm">
+                <i class="fas fa-lock w-5 text-center"></i> Security & Password
+            </a>
+        </div>
+
+        <!-- Settings Content -->
+        <div class="lg:col-span-2 space-y-8">
+            <!-- Profile Section -->
+            <div id="profile" class="bg-white rounded-3xl shadow-sm border border-slate-100 overflow-hidden">
+                <div class="p-6 border-b border-slate-100">
+                    <h3 class="font-bold text-slate-800">Personal Information</h3>
+                    <p class="text-xs text-slate-500">Update your public caregiver profile and contact details</p>
+                </div>
+                <form method="POST" enctype="multipart/form-data" class="p-6 space-y-6">
+                    {% csrf_token %}
+                    <input type="hidden" name="action" value="update_profile">
+
+                    <div class="flex items-center gap-6 mb-6">
+                        <div class="relative group">
+                            {% if profile.profile_photo %}
+                            <img src="{{ profile.profile_photo.url }}" alt="{{ user.get_full_name }}" class="w-24 h-24 rounded-2xl object-cover border-4 border-white shadow-md">
+                            {% else %}
+                            <div class="w-24 h-24 bg-slate-100 rounded-2xl flex items-center justify-center text-slate-400 border-2 border-dashed border-slate-200">
+                                <i class="fas fa-user text-2xl"></i>
+                            </div>
+                            {% endif %}
+                            <label class="absolute bottom-0 right-0 p-2 bg-white rounded-full shadow-lg cursor-pointer hover:text-blue-600 transition text-slate-400 border border-slate-100">
+                                <i class="fas fa-camera text-xs"></i>
+                                <input type="file" name="profile_photo" class="hidden" onchange="this.form.submit()">
+                            </label>
+                        </div>
+                        <div>
+                            <h4 class="font-bold text-slate-800">{{ user.get_full_name }}</h4>
+                            <p class="text-xs text-slate-500">{{ user.unique_id }}</p>
+                            <div class="flex items-center gap-2 mt-2">
+                                <span class="px-2 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider
+                                    {% if profile.is_available %}bg-emerald-100 text-emerald-700{% else %}bg-red-100 text-red-700{% endif %}">
+                                    {{ profile.is_available|yesno:"Available,Unavailable" }}
+                                </span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div class="space-y-1">
+                            <label class="text-xs font-bold text-slate-600 uppercase tracking-wider">Full Name</label>
+                            <input type="text" name="full_name" value="{{ user.get_full_name }}" class="w-full p-3 bg-slate-50 border border-slate-200 rounded-xl text-sm outline-none focus:ring-2 focus:ring-blue-500 transition">
+                        </div>
+                        <div class="space-y-1">
+                            <label class="text-xs font-bold text-slate-600 uppercase tracking-wider">Phone Number</label>
+                            <input type="text" name="phone" value="{{ user.phone }}" class="w-full p-3 bg-slate-50 border border-slate-200 rounded-xl text-sm outline-none focus:ring-2 focus:ring-blue-500 transition">
+                        </div>
+                    </div>
+
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div class="space-y-1">
+                            <label class="text-xs font-bold text-slate-600 uppercase tracking-wider">Caregiver Type</label>
+                            <select name="caregiver_type" class="w-full p-3 bg-slate-50 border border-slate-200 rounded-xl text-sm outline-none focus:ring-2 focus:ring-blue-500 transition">
+                                {% for val, label in caregiver_type_choices %}
+                                <option value="{{ val }}" {% if profile.caregiver_type == val %}selected{% endif %}>{{ label }}</option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                        <div class="space-y-1">
+                            <label class="text-xs font-bold text-slate-600 uppercase tracking-wider">Relation to Patient</label>
+                            <select name="relation" class="w-full p-3 bg-slate-50 border border-slate-200 rounded-xl text-sm outline-none focus:ring-2 focus:ring-blue-500 transition">
+                                {% for val, label in relation_choices %}
+                                <option value="{{ val }}" {% if profile.relation == val %}selected{% endif %}>{{ label }}</option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                    </div>
+
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div class="space-y-1">
+                            <label class="text-xs font-bold text-slate-600 uppercase tracking-wider">Organization</label>
+                            <input type="text" name="organization" value="{{ profile.organization }}" class="w-full p-3 bg-slate-50 border border-slate-200 rounded-xl text-sm outline-none focus:ring-2 focus:ring-blue-500 transition">
+                        </div>
+                        <div class="space-y-1">
+                            <label class="text-xs font-bold text-slate-600 uppercase tracking-wider">Specialization</label>
+                            <input type="text" name="specialization" value="{{ profile.specialization }}" class="w-full p-3 bg-slate-50 border border-slate-200 rounded-xl text-sm outline-none focus:ring-2 focus:ring-blue-500 transition">
+                        </div>
+                    </div>
+
+                    <div class="space-y-1">
+                        <label class="text-xs font-bold text-slate-600 uppercase tracking-wider">Address</label>
+                        <textarea name="address" rows="2" class="w-full p-3 bg-slate-50 border border-slate-200 rounded-xl text-sm outline-none focus:ring-2 focus:ring-blue-500 transition">{{ profile.address }}</textarea>
+                    </div>
+
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div class="space-y-1">
+                            <label class="text-xs font-bold text-slate-600 uppercase tracking-wider">Shift Start</label>
+                            <input type="time" name="shift_start" value="{% if profile.shift_start %}{{ profile.shift_start|time:'H:i' }}{% endif %}" class="w-full p-3 bg-slate-50 border border-slate-200 rounded-xl text-sm outline-none focus:ring-2 focus:ring-blue-500 transition">
+                        </div>
+                        <div class="space-y-1">
+                            <label class="text-xs font-bold text-slate-600 uppercase tracking-wider">Shift End</label>
+                            <input type="time" name="shift_end" value="{% if profile.shift_end %}{{ profile.shift_end|time:'H:i' }}{% endif %}" class="w-full p-3 bg-slate-50 border border-slate-200 rounded-xl text-sm outline-none focus:ring-2 focus:ring-blue-500 transition">
+                        </div>
+                    </div>
+
+                    <div class="space-y-1">
+                        <label class="text-xs font-bold text-slate-600 uppercase tracking-wider">Emergency Contact</label>
+                        <input type="text" name="emergency_contact" value="{{ profile.emergency_contact }}" placeholder="Name & phone" class="w-full p-3 bg-slate-50 border border-slate-200 rounded-xl text-sm outline-none focus:ring-2 focus:ring-blue-500 transition">
+                    </div>
+
+                    <div class="space-y-1">
+                        <label class="text-xs font-bold text-slate-600 uppercase tracking-wider">Bio / Experience</label>
+                        <textarea name="bio" rows="3" class="w-full p-3 bg-slate-50 border border-slate-200 rounded-xl text-sm outline-none focus:ring-2 focus:ring-blue-500 transition">{{ profile.bio }}</textarea>
+                    </div>
+
+                    <div class="flex items-center justify-between p-4 bg-slate-50 rounded-2xl border border-slate-200">
+                        <div class="flex items-center gap-3">
+                            <div class="w-10 h-10 bg-white rounded-xl flex items-center justify-center shadow-sm">
+                                <i class="fas fa-toggle-on text-slate-400"></i>
+                            </div>
+                            <div>
+                                <div class="text-sm font-bold text-slate-800">Availability Status</div>
+                                <div class="text-xs text-slate-500">Let patients know if you are currently available for new requests</div>
+                            </div>
+                        </div>
+                        <label class="relative inline-flex items-center cursor-pointer">
+                            <input type="checkbox" name="is_available" class="sr-only peer" {% if profile.is_available %}checked{% endif %}>
+                            <div class="w-11 h-6 bg-gray-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-emerald-600">S</div>
+                        </label>
+                    </div>
+
+                    <div class="flex justify-end gap-3 pt-4">
+                        <button type="submit" class="px-6 py-3 bg-blue-600 text-white font-bold rounded-xl hover:bg-blue-700 transition shadow-lg shadow-blue-200">
+                            Save Profile Changes <i class="fas fa-save ml-2 text-xs"></i>
+                        </button>
+                    </div>
+                </form>
+            </div>
+
+            <!-- Security Section -->
+            <div id="security" class="bg-white rounded-3xl shadow-sm border border-slate-100 overflow-hidden">
+                <div class="p-6 border-b border-slate-100">
+                    <h3 class="font-bold text-slate-800">Security & Password</h3>
+                    <p class="text-xs text-slate-500">Ensure your account is secure and update your password</p>
+                </div>
+                <form method="POST" class="p-6 space-y-6">
+                    {% csrf_token %}
+                    <input type="hidden" name="action" value="change_password">
+
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                        <div class="space-y-1">
+                            <label class="text-xs font-bold text-slate-600 uppercase tracking-wider">Current Password</label>
+                            <input type="password" name="old_password" class="w-full p-3 bg-slate-50 border border-slate-200 rounded-xl text-sm outline-none focus:ring-2 focus:ring-blue-500 transition" placeholder="••••••••">
+                        </div>
+                        <div class="space-y-1">
+                            <label class="text-xs font-bold text-slate-600 uppercase tracking-wider">New Password</label>
+                            <input type="password" name="new_password" class="w-full p-3 bg-slate-50 border border-slate-200 rounded-xl text-sm outline-none focus:ring-2 focus:ring-blue-500 transition" placeholder="••••••••">
+                        </div>
+                    </div>
+                    <div class="space-y-1">
+                        <label class="text-xs font-bold text-slate-600 uppercase tracking-wider">Confirm New Password</label>
+                        <input type="password" name="confirm_password" class="w-full p-3 bg-slate-50 border border-slate-200 rounded-xl text-sm outline-none focus:ring-2 focus:ring-blue-500 transition" placeholder="••••••••">
+                    </div>
+                    <div class="flex justify-end gap-3 pt-4">
+                        <button type="submit" class="px-6 py-3 bg-slate-800 text-white font-bold rounded-xl hover:bg-slate-900 transition shadow-lg shadow-slate-200">
+                            Update Password <i class="fas fa-key ml-2 text-xs"></i>
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

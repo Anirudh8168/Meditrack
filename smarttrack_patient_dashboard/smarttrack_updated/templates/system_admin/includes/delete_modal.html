@@ -1,0 +1,17 @@
+<div id="adminDeleteModal" class="admin-modal hidden" aria-hidden="true">
+  <div class="admin-modal-backdrop" data-modal-close></div>
+  <div class="admin-modal-dialog" role="dialog" aria-modal="true" aria-labelledby="adminDeleteModalTitle">
+    <div class="admin-modal-icon"><i class="fas fa-exclamation-triangle"></i></div>
+    <h3 id="adminDeleteModalTitle" class="admin-modal-title">Delete Record?</h3>
+    <p id="adminDeleteModalMessage" class="admin-modal-message"></p>
+    <p id="adminDeleteModalWarning" class="admin-modal-warning hidden"></p>
+    <p class="admin-modal-note">This action cannot be undone.</p>
+    <div class="admin-modal-actions">
+      <button type="button" class="admin-btn-cancel" data-modal-close>Cancel</button>
+      <form id="adminDeleteForm" method="POST" class="inline">
+        {% csrf_token %}
+        <button type="submit" class="admin-btn-danger">Delete</button>
+      </form>
+    </div>
+  </div>
+</div>

@@ -1,0 +1,13 @@
+<div class="admin-relationship-grid">
+  {% for card in relationships %}
+  <div class="admin-relationship-card">
+    <div class="admin-relationship-role">{{ card.role }}</div>
+    {% if card.url %}
+    <a href="{{ card.url }}" class="admin-relationship-name hover:text-indigo-600 transition">{{ card.name|default:"—" }}</a>
+    {% else %}
+    <div class="admin-relationship-name">{{ card.name|default:"Not assigned" }}</div>
+    {% endif %}
+    {% if card.subtitle %}<div class="text-xs text-slate-400 mt-1">{{ card.subtitle }}</div>{% endif %}
+  </div>
+  {% endfor %}
+</div>

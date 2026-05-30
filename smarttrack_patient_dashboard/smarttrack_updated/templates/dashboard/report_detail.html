@@ -1,0 +1,135 @@
+{% extends 'base_dashboard.html' %}
+{% block title %}Health Report{% endblock %}
+{% block page_title %}Health Report{% endblock %}
+{% block page_subtitle %}{{ report.title }}{% endblock %}
+{% block content %}
+<!-- Header -->
+<div class="flex items-center justify-between mb-6 flex-wrap gap-3">
+  <a href="/reports/" class="inline-flex items-center gap-2 text-sm text-slate-500 hover:text-slate-800 transition">
+    <i class="fas fa-arrow-left"></i> Back to Reports
+  </a>
+  <a href="/reports/{{ report.id }}/pdf/" class="px-4 py-2 bg-rose-600 hover:bg-rose-700 text-white rounded-xl text-sm font-semibold transition flex items-center gap-2">
+    <i class="fas fa-file-pdf"></i> Download PDF
+  </a>
+</div>
+
+<!-- Report Card -->
+<div class="bg-white rounded-2xl shadow-sm border border-slate-100 overflow-hidden mb-6">
+  <!-- Banner -->
+  <div class="bg-gradient-to-r {% if report.risk_level == 'high' %}from-red-600 to-rose-700{% elif report.risk_level == 'medium' %}from-amber-500 to-orange-600{% else %}from-emerald-600 to-teal-700{% endif %} p-6 text-white">
+    <div class="flex items-start justify-between flex-wrap gap-4">
+      <div>
+        <div class="text-sm opacity-80 mb-1">SmartTrack Health Report</div>
+        <h2 class="text-2xl font-black leading-tight">{{ report.title }}</h2>
+        <div class="mt-2 text-sm opacity-80">Generated {{ report.created_at|date:"F j, Y \a\t g:i A" }}</div>
+      </div>
+      <div class="text-center">
+        <div class="text-5xl font-black">{{ report.adherence_pct }}%</div>
+        <div class="text-sm opacity-80">Adherence Rate</div>
+        <div class="mt-2 px-3 py-1 bg-white/20 rounded-full text-sm font-semibold">
+          {{ report.risk_level|upper }} RISK
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Info Row -->
+  <div class="grid grid-cols-2 md:grid-cols-4 divide-x divide-y divide-slate-100">
+    <div class="p-4">
+      <div class="text-xs text-slate-500 mb-1">Patient</div>
+      <div class="font-bold text-slate-800">{{ report.patient.get_full_name }}</div>
+      <div class="text-xs text-slate-400">{{ report.patient.unique_id }}</div>
+    </div>
+    <div class="p-4">
+      <div class="text-xs text-slate-500 mb-1">Doctor</div>
+      <div class="font-bold text-slate-800">Dr. {{ report.doctor.get_full_name }}</div>
+      <div class="text-xs text-slate-400">{{ report.doctor.unique_id }}</div>
+    </div>
+    <div class="p-4">
+      <div class="text-xs text-slate-500 mb-1">Health Risk Level</div>
+      <div class="font-black text-2xl {% if report.risk_level == 'high' %}text-red-600{% elif report.risk_level == 'medium' %}text-amber-600{% else %}text-emerald-600{% endif %}">{{ report.risk_score }}<span class="text-sm font-normal text-slate-400">/100</span></div>
+    </div>
+    <div class="p-4">
+      <div class="text-xs text-slate-500 mb-1">Status</div>
+      <span class="px-2 py-1 text-sm rounded-full font-semibold {% if report.status == 'viewed' %}bg-emerald-100 text-emerald-700{% elif report.status == 'sent' %}bg-blue-100 text-blue-700{% else %}bg-slate-100 text-slate-600{% endif %}">
+        {{ report.get_status_display }}
+      </span>
+    </div>
+  </div>
+</div>
+
+<!-- Analytics Charts -->
+{% if report.report_data.weekly_data %}
+<div class="bg-white rounded-2xl shadow-sm border border-slate-100 p-6 mb-6">
+  <h3 class="font-bold text-slate-800 mb-4 flex items-center gap-2"><i class="fas fa-chart-bar text-blue-500"></i> Weekly Adherence Breakdown</h3>
+  <div class="flex items-end gap-3 h-32 mb-3">
+    {% for w in report.report_data.weekly_data %}
+    <div class="flex-1 flex flex-col items-center gap-1">
+      <span class="text-xs text-slate-500 font-medium">{{ w.pct }}%</span>
+      <div class="w-full rounded-t-xl transition-all {% if w.pct >= 80 %}bg-emerald-500{% elif w.pct >= 50 %}bg-amber-500{% else %}bg-red-500{% endif %}"
+           style="height:{{ w.pct }}%; min-height:6px"></div>
+      <span class="text-xs text-slate-400">{{ w.week }}</span>
+      <span class="text-xs text-slate-400">{{ w.taken }}/{{ w.total }}</span>
+    </div>
+    {% endfor %}
+  </div>
+  <div class="flex items-center justify-center gap-6 text-xs text-slate-500">
+    <span class="flex items-center gap-1.5"><span class="w-3 h-3 bg-emerald-500 rounded-sm inline-block"></span>≥80% (Good)</span>
+    <span class="flex items-center gap-1.5"><span class="w-3 h-3 bg-amber-500 rounded-sm inline-block"></span>50-79% (Moderate)</span>
+    <span class="flex items-center gap-1.5"><span class="w-3 h-3 bg-red-500 rounded-sm inline-block"></span>&lt;50% (Poor)</span>
+  </div>
+</div>
+{% endif %}
+
+<!-- Risk Gauge -->
+<div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-6">
+  <div class="bg-white rounded-2xl shadow-sm border border-slate-100 p-6 flex flex-col items-center">
+    <h4 class="font-bold text-slate-700 mb-4 text-sm">Risk Gauge</h4>
+    <div class="relative w-36 h-36">
+      <svg viewBox="0 0 36 36" class="w-36 h-36 -rotate-90">
+        <path d="M18 2.0845 a15.9155 15.9155 0 0 1 0 31.831 a15.9155 15.9155 0 0 1 0 -31.831" fill="none" stroke="#E2E8F0" stroke-width="3.5"/>
+        <path d="M18 2.0845 a15.9155 15.9155 0 0 1 0 31.831 a15.9155 15.9155 0 0 1 0 -31.831" fill="none"
+          stroke="{% if report.risk_level == 'high' %}#ef4444{% elif report.risk_level == 'medium' %}#f59e0b{% else %}#10b981{% endif %}"
+          stroke-width="3.5" stroke-dasharray="{{ report.risk_score }}, 100" stroke-linecap="round"/>
+      </svg>
+      <div class="absolute inset-0 flex flex-col items-center justify-center">
+        <span class="text-2xl font-black text-slate-800">{{ report.risk_score }}</span>
+        <span class="text-xs text-slate-500">Health Risk</span>
+      </div>
+    </div>
+    <div class="mt-3 px-4 py-1.5 rounded-full text-sm font-bold {% if report.risk_level == 'high' %}bg-red-100 text-red-700{% elif report.risk_level == 'medium' %}bg-amber-100 text-amber-700{% else %}bg-emerald-100 text-emerald-700{% endif %}">
+      {{ report.risk_level|upper }} RISK
+    </div>
+  </div>
+
+  <div class="md:col-span-2 bg-white rounded-2xl shadow-sm border border-slate-100 p-6">
+    <h4 class="font-bold text-slate-700 mb-4 flex items-center gap-2 text-sm"><i class="fas fa-stethoscope text-violet-500"></i> Clinical Health Review</h4>
+    <p class="text-sm text-slate-700 leading-relaxed">{{ report.get_health_analysis_display }}</p>
+  </div>
+</div>
+
+<!-- Recommendations -->
+<div class="bg-white rounded-2xl shadow-sm border border-slate-100 p-6 mb-6">
+  <h3 class="font-bold text-slate-800 mb-4 flex items-center gap-2"><i class="fas fa-clipboard-list text-emerald-500"></i> Clinical Recommendations</h3>
+  <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
+    {% for line in report.recommendations.splitlines %}
+    {% if line.strip %}
+    <div class="flex items-start gap-3 p-3 rounded-xl bg-emerald-50 border border-emerald-100">
+      <i class="fas fa-check-circle text-emerald-500 mt-0.5 flex-shrink-0"></i>
+      <span class="text-sm text-slate-700">{{ line|cut:"• " }}</span>
+    </div>
+    {% endif %}
+    {% endfor %}
+  </div>
+</div>
+
+<!-- Summary -->
+<div class="bg-gradient-to-br from-slate-900 to-slate-800 rounded-2xl p-6 text-white">
+  <h3 class="font-bold mb-3 flex items-center gap-2"><i class="fas fa-file-medical-alt text-blue-400"></i> Health Summary</h3>
+  <p class="text-slate-300 text-sm leading-relaxed">{{ report.summary }}</p>
+  <div class="mt-4 pt-4 border-t border-slate-700 flex items-center justify-between text-xs text-slate-400">
+    <span>SmartTrack Healthcare Platform</span>
+    <span>Report ID: #{{ report.id }}</span>
+  </div>
+</div>
+{% endblock %}

@@ -1,0 +1,33 @@
+{% comment %}
+  History page only. Expects: category, history_preset, history_date_from, history_date_to, filter_query
+{% endcomment %}
+<div class="bg-white rounded-xl border border-slate-200 shadow-sm p-4 mb-6 max-w-4xl">
+  <p class="text-xs font-semibold text-slate-500 uppercase tracking-wide mb-3">Date range</p>
+  <form method="get" action="/appointments/history/" class="space-y-3">
+    <input type="hidden" name="category" value="{{ category }}">
+    <div class="flex flex-wrap items-end gap-3">
+      <div>
+        <label class="block text-[10px] font-medium text-slate-500 mb-1">Start date</label>
+        <input type="date" name="from_date" value="{{ history_date_from|date:'Y-m-d' }}"
+          class="px-3 py-2 border border-slate-200 rounded-lg text-sm w-full min-w-[140px] focus:ring-2 focus:ring-violet-400 focus:outline-none">
+      </div>
+      <span class="text-slate-400 pb-2 hidden sm:inline">→</span>
+      <div>
+        <label class="block text-[10px] font-medium text-slate-500 mb-1">End date</label>
+        <input type="date" name="to_date" value="{{ history_date_to|date:'Y-m-d' }}"
+          class="px-3 py-2 border border-slate-200 rounded-lg text-sm w-full min-w-[140px] focus:ring-2 focus:ring-violet-400 focus:outline-none">
+      </div>
+      <button type="submit" class="px-5 py-2 bg-violet-600 text-white text-sm font-semibold rounded-lg hover:bg-violet-700">
+        Search
+      </button>
+    </div>
+    <div class="flex flex-wrap gap-2 pt-1">
+      <a href="/appointments/history/?category={{ category }}&preset=today" class="px-3 py-1.5 text-xs font-semibold rounded-full {% if history_preset == 'today' %}bg-violet-600 text-white{% else %}bg-slate-100 text-slate-600 hover:bg-slate-200{% endif %}">Today</a>
+      <a href="/appointments/history/?category={{ category }}&preset=yesterday" class="px-3 py-1.5 text-xs font-semibold rounded-full {% if history_preset == 'yesterday' %}bg-violet-600 text-white{% else %}bg-slate-100 text-slate-600 hover:bg-slate-200{% endif %}">Yesterday</a>
+      <a href="/appointments/history/?category={{ category }}&preset=last7" class="px-3 py-1.5 text-xs font-semibold rounded-full {% if history_preset == 'last7' %}bg-violet-600 text-white{% else %}bg-slate-100 text-slate-600 hover:bg-slate-200{% endif %}">Last 7 Days</a>
+      <a href="/appointments/history/?category={{ category }}&preset=month" class="px-3 py-1.5 text-xs font-semibold rounded-full {% if history_preset == 'month' %}bg-violet-600 text-white{% else %}bg-slate-100 text-slate-600 hover:bg-slate-200{% endif %}">This Month</a>
+      <a href="/appointments/history/?category={{ category }}&preset=lastmonth" class="px-3 py-1.5 text-xs font-semibold rounded-full {% if history_preset == 'lastmonth' %}bg-violet-600 text-white{% else %}bg-slate-100 text-slate-600 hover:bg-slate-200{% endif %}">Last Month</a>
+      <a href="/appointments/history/?category={{ category }}&preset=all" class="px-3 py-1.5 text-xs font-semibold rounded-full {% if history_preset == 'all' %}bg-violet-600 text-white{% else %}bg-slate-100 text-slate-600 hover:bg-slate-200{% endif %}">All</a>
+    </div>
+  </form>
+</div>

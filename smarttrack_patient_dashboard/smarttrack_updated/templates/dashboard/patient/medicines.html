@@ -1,0 +1,614 @@
+{% extends 'base_dashboard.html' %}
+{% block title %}My Medicines{% endblock %}
+{% block page_title %}My Medicines{% endblock %}
+{% block page_subtitle %}View your prescriptions and mark doses taken at the correct time{% endblock %}
+
+{% block content %}
+{% load static %}
+<form style="display:none">{% csrf_token %}</form>
+
+<!-- Overdose Warning Modal -->
+<div id="overdoseModal" class="fixed inset-0 bg-black/60 z-50 hidden flex items-center justify-center p-4">
+
+  <div class="bg-white rounded-2xl shadow-2xl w-full max-w-sm p-6 text-center relative">
+    <button type="button" onclick="document.getElementById('overdoseModal').classList.add('hidden')"
+      class="absolute top-3 right-3 w-8 h-8 rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-500 flex items-center justify-center transition"
+      aria-label="Close">
+      <i class="fas fa-times"></i>
+    </button>
+    <div class="w-16 h-16 bg-red-100 rounded-full flex items-center justify-center mx-auto mb-4">
+      <i class="fas fa-exclamation-triangle text-red-500 text-2xl"></i>
+    </div>
+    <h3 class="font-bold text-slate-800 text-lg mb-2">⚠️ Overdose Warning!</h3>
+    <p class="text-sm text-slate-600 mb-4" id="overdoseMsg">Warning: This medicine is prescribed once daily. Taking excess dosage may be dangerous and harmful to your health. Please follow your doctor's prescription.</p>
+    <button onclick="document.getElementById('overdoseModal').classList.add('hidden')"
+      class="w-full px-4 py-3 bg-red-600 text-white rounded-xl font-semibold hover:bg-red-700 transition">OK</button>
+  </div>
+</div>
+
+<!-- Reminder Popup Modal -->
+<div id="reminderModal" class="fixed inset-0 bg-black/60 z-50 hidden flex items-center justify-center p-4">
+  <div class="bg-white rounded-2xl shadow-2xl w-full max-w-sm p-6">
+    <div class="flex items-center gap-3 mb-4">
+      <div class="w-12 h-12 bg-amber-100 rounded-xl flex items-center justify-center animate-bounce">
+        <i class="fas fa-bell text-amber-600 text-xl"></i>
+      </div>
+      <div>
+        <h3 class="font-bold text-slate-800">💊 Medicine Reminder!</h3>
+        <p class="text-xs text-amber-600 animate-pulse">Time to take your medicine!</p>
+      </div>
+    </div>
+    <div id="reminderContent" class="mb-4"></div>
+    <button onclick="document.getElementById('reminderModal').classList.add('hidden')"
+      class="w-full px-4 py-3 bg-amber-500 text-white rounded-xl font-semibold hover:bg-amber-600 transition">
+      <i class="fas fa-check mr-2"></i>Got it!
+    </button>
+  </div>
+</div>
+
+<!-- Page Header -->
+<div class="flex items-center justify-between mb-6 flex-wrap gap-3">
+  <div>
+    {% if is_patient %}
+    <div class="px-4 py-2 bg-blue-50 border border-blue-200 rounded-xl text-xs text-blue-700 flex items-center gap-2">
+      <i class="fas fa-shield-alt text-blue-500"></i>
+      Medicines are prescribed by your doctor. <strong>Mark as Taken is enabled only at medicine time.</strong>
+    </div>
+    {% else %}
+    <a href="/medicines/add/" class="px-4 py-2.5 bg-emerald-600 text-white rounded-xl font-semibold text-sm hover:bg-emerald-700 transition flex items-center gap-2 inline-flex">
+      <i class="fas fa-plus"></i> Add Medicine
+    </a>
+    {% endif %}
+  </div>
+  <div class="flex gap-2">
+    <a href="/medicines/analytics/" class="px-3 py-2 bg-slate-100 text-slate-700 rounded-xl text-sm hover:bg-slate-200 transition flex items-center gap-1">
+      <i class="fas fa-chart-bar"></i> Analytics
+    </a>
+    {% if is_patient %}
+    <a href="/medicines/family-contacts/" class="px-3 py-2 bg-slate-100 text-slate-700 rounded-xl text-sm hover:bg-slate-200 transition flex items-center gap-1">
+      <i class="fas fa-users"></i> Family Contacts
+    </a>
+    {% endif %}
+  </div>
+</div>
+
+<!-- Upcoming Reminders Countdown -->
+<div id="countdownSection" class="mb-6 hidden">
+  <div class="bg-gradient-to-r from-amber-500 to-orange-500 rounded-2xl p-4 text-white">
+    <div class="flex items-center gap-2 mb-3">
+      <i class="fas fa-clock animate-pulse"></i>
+      <span class="font-bold">Upcoming Medicine Reminders</span>
+      
+    </div>
+    <div id="countdownList" class="space-y-2"></div>
+  </div>
+</div>
+
+<!-- Active Medicines -->
+{% if medicines %}
+<div class="mb-3 flex items-center gap-2">
+  <i class="fas fa-pills text-blue-500"></i>
+  <h3 class="font-bold text-slate-800">Active Prescriptions ({{ medicines.count }})</h3>
+</div>
+<div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-8">
+  {% for med in medicines %}
+  <div class="bg-white rounded-2xl shadow-sm border border-slate-100 p-5 hover:shadow-md transition" id="med-card-{{ med.id }}">
+    <!-- Header -->
+    <div class="flex items-start gap-3 mb-4">
+      <div class="w-12 h-12 rounded-2xl flex items-center justify-center flex-shrink-0
+        {% if med.color == 'blue' %}bg-blue-100 text-blue-600
+        {% elif med.color == 'green' %}bg-emerald-100 text-emerald-600
+        {% elif med.color == 'red' %}bg-red-100 text-red-600
+        {% elif med.color == 'purple' %}bg-violet-100 text-violet-600
+        {% elif med.color == 'orange' %}bg-orange-100 text-orange-600
+        {% else %}bg-amber-100 text-amber-600{% endif %}">
+        <i class="fas fa-capsules text-lg"></i>
+      </div>
+      <div class="flex-1 min-w-0">
+        <div class="font-bold text-slate-800 text-base truncate">{{ med.name }}</div>
+        <div class="text-xs text-slate-500 mt-0.5">{{ med.dosage }} · {{ med.get_frequency_display }}</div>
+        {% if med.prescribed_by %}
+        <div class="text-xs text-blue-600 mt-0.5"><i class="fas fa-user-md mr-1"></i>Dr. {{ med.prescribed_by.get_full_name }}</div>
+        {% endif %}
+      </div>
+      <div class="text-right flex-shrink-0">
+        <div class="text-xs text-slate-500 space-y-0.5">
+          <div>Prescribed: <span class="font-semibold text-slate-700">{{ med.prescribed_quantity|default:0 }}</span></div>
+          <div>Purchased: <span class="font-semibold text-slate-700">{{ med.purchased_quantity|default:0 }}</span></div>
+          <div>Stock: <span class="font-bold {% if med.not_purchased_yet %}text-amber-600{% elif med.is_critical_stock %}text-red-600{% elif med.is_low_stock %}text-amber-600{% else %}text-emerald-600{% endif %}">{{ med.stock_quantity }}</span></div>
+        </div>
+        {% if med.not_purchased_yet %}
+        <div class="text-xs text-amber-600 font-semibold mt-1">Awaiting purchase</div>
+        {% elif med.is_critical_stock %}
+        <div class="text-xs text-red-500 mt-1">🚨 Critical!</div>
+        {% elif med.is_low_stock %}
+        <div class="text-xs text-amber-500 mt-1">⚠️ Low</div>
+        {% endif %}
+        {% if med.remaining_required and not med.not_purchased_yet %}
+        <div class="text-xs text-slate-400 mt-0.5">{{ med.remaining_required }} more needed</div>
+        {% endif %}
+      </div>
+    </div>
+
+    {% if med.not_purchased_yet %}
+    <div class="mb-4 p-4 bg-amber-50 border-2 border-amber-300 rounded-xl">
+      <div class="flex items-start gap-3">
+        <div class="w-10 h-10 rounded-xl bg-amber-100 flex items-center justify-center flex-shrink-0">
+          <i class="fas fa-exclamation-triangle text-amber-600"></i>
+        </div>
+        <div class="flex-1 min-w-0">
+          <p class="font-bold text-amber-900 text-sm">Medicine Not Purchased Yet</p>
+          <p class="text-xs text-amber-800 mt-1.5">Add your medicine purchase to enable:</p>
+          <ul class="text-xs text-amber-700 mt-2 space-y-1">
+            <li class="flex items-center gap-1.5"><i class="fas fa-check text-[10px] text-amber-500"></i> medicine reminders</li>
+            <li class="flex items-center gap-1.5"><i class="fas fa-check text-[10px] text-amber-500"></i> mark taken</li>
+            <li class="flex items-center gap-1.5"><i class="fas fa-check text-[10px] text-amber-500"></i> stock tracking</li>
+          </ul>
+        </div>
+      </div>
+      <button type="button" onclick="openQuickRefillModal({{ med.id }}, '{{ med.name|escapejs }}', {{ med.prescribed_quantity|default:0 }})"
+              class="w-full mt-4 py-3.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl font-bold text-sm transition shadow-sm flex items-center justify-center gap-2">
+        <i class="fas fa-plus-circle"></i> Add Purchase
+      </button>
+    </div>
+    {% elif med.purchased_quantity %}
+    <div class="mb-3 p-3 bg-emerald-50 border border-emerald-200 rounded-xl text-xs text-emerald-800 flex items-center gap-2">
+      <i class="fas fa-check-circle text-emerald-600"></i>
+      <span><strong>Medicine Purchased</strong> — reminders active. Mark Taken unlocks at your scheduled dose time.</span>
+    </div>
+    {% elif med.is_critical_stock or med.refill_required %}
+    <div class="mb-3 p-3 bg-amber-50 border border-amber-200 rounded-xl text-xs text-amber-800">
+      <i class="fas fa-exclamation-circle mr-1"></i>
+      {% if med.stock_quantity <= 0 %}Out of stock — refill urgently{% else %}Only {{ med.stock_quantity }} doses left — please refill soon{% endif %}
+    </div>
+    {% endif %}
+
+    <!-- Time Slots -->
+    {% if med.time_slots %}
+    <div class="flex flex-wrap gap-1 mb-3">
+      {% for slot in med.time_slots %}
+      <span class="text-xs bg-slate-100 text-slate-600 px-2 py-1 rounded-lg flex items-center gap-1">
+        <i class="fas fa-clock text-xs"></i> {{ slot }}
+      </span>
+      {% endfor %}
+    </div>
+    {% endif %}
+
+    <!-- Duration -->
+    {% if med.end_date %}
+    <div class="mb-3">
+      <div class="flex justify-between text-xs text-slate-500 mb-1">
+        <span>Course Progress</span>
+        <span>{{ med.days_remaining }} days left</span>
+      </div>
+      <div class="w-full bg-slate-100 rounded-full h-1.5">
+        <div class="h-1.5 bg-blue-500 rounded-full" style="width: {{ med.completion_pct }}%"></div>
+      </div>
+    </div>
+    {% endif %}
+
+    <!-- Daily Dose Progress -->
+    <div class="mb-4">
+      <div class="flex justify-between text-xs text-slate-500 mb-1">
+        <span>Today's doses</span>
+        <span id="dose-count-{{ med.id }}">{{ med.today_taken_count }}/{{ med.max_daily_doses }}</span>
+      </div>
+      <div class="w-full bg-slate-100 rounded-full h-2">
+        <div id="dose-bar-{{ med.id }}" class="h-2 rounded-full transition-all
+          {% if med.today_taken %}bg-emerald-500{% else %}bg-blue-500{% endif %}"
+          style="width: {% widthratio med.today_taken_count med.max_daily_doses 100 %}%"></div>
+      </div>
+    </div>
+
+    <!-- Action Buttons -->
+    <div class="flex gap-2" id="action-area-{{ med.id }}">
+      {% if is_patient %}
+        {% if med.not_purchased_yet %}
+        <div class="flex-1 px-4 py-2.5 bg-slate-100 text-slate-500 rounded-xl text-sm font-semibold text-center flex flex-col items-center justify-center gap-0.5 cursor-not-allowed">
+          <span class="flex items-center gap-2"><i class="fas fa-lock"></i> Mark Taken Disabled</span>
+          <span class="text-xs font-normal">{% if med.status_message %}{{ med.status_message }}{% else %}Add purchase first — then unlocks at dose time{% endif %}</span>
+        </div>
+        {% elif med.dose_button_state == 'no_stock' %}
+        <div class="flex-1 px-4 py-2.5 bg-slate-100 text-slate-500 rounded-xl text-sm font-semibold text-center flex flex-col items-center justify-center gap-0.5 cursor-not-allowed">
+          <span class="flex items-center gap-2"><i class="fas fa-lock"></i> Mark Taken Disabled</span>
+          <span class="text-xs font-normal">Out of stock — refill required</span>
+        </div>
+        {% elif med.dose_button_state == 'due' %}
+        <button onclick="markMedicine({{ med.id }}, 'taken', this)"
+          class="flex-1 px-4 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-sm font-semibold transition flex flex-col items-center justify-center gap-0.5 mark-btn-{{ med.id }}">
+          <span class="flex items-center gap-2"><i class="fas fa-check"></i> Mark Taken</span>
+          {% if med.is_overdue and med.overdue_minutes %}<span class="text-xs font-normal opacity-90">Overdue by {{ med.overdue_minutes }} min</span>{% endif %}
+        </button>
+        {% elif med.dose_button_state == 'snoozed' %}
+        <button onclick="markMedicine({{ med.id }}, 'taken', this)"
+          class="flex-1 px-4 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-sm font-semibold transition flex items-center justify-center gap-2 mark-btn-{{ med.id }} ring-2 ring-amber-300 ring-offset-1">
+          <i class="fas fa-bell"></i> Take Medicine
+        </button>
+        {% elif med.dose_button_state == 'all_taken' %}
+        <div class="flex-1 px-4 py-2.5 bg-emerald-50 border border-emerald-200 text-emerald-700 rounded-xl text-sm font-semibold text-center flex items-center justify-center gap-2">
+          <i class="fas fa-check-double"></i> All doses taken today ✓
+        </div>
+        {% elif med.dose_button_state == 'taken_waiting' %}
+        <div class="flex-1 px-4 py-2.5 bg-emerald-50 border border-emerald-200 text-emerald-700 rounded-xl text-sm font-semibold text-center flex flex-col items-center justify-center gap-0.5">
+          <span class="flex items-center gap-2"><i class="fas fa-check"></i> Dose Taken ✓</span>
+          {% if med.next_dose_display %}<span class="text-xs font-normal text-emerald-600">Next dose: {{ med.next_dose_display }}</span>{% endif %}
+        </div>
+        {% elif med.dose_button_state == 'missed' %}
+        <div class="flex-1 px-4 py-2.5 bg-red-50 border border-red-200 text-red-700 rounded-xl text-sm font-semibold text-center flex items-center justify-center gap-2 cursor-not-allowed">
+          <i class="fas fa-times-circle"></i> Missed
+        </div>
+        {% elif med.dose_button_state == 'not_started' %}
+        <div class="flex-1 px-4 py-2.5 bg-slate-100 text-slate-400 rounded-xl text-sm font-semibold text-center flex items-center justify-center gap-2 cursor-not-allowed">
+          <i class="fas fa-lock"></i> {{ med.status_message|default:"Not scheduled yet" }}
+        </div>
+        {% else %}
+        <div class="flex-1 px-4 py-2.5 bg-slate-100 text-slate-400 rounded-xl text-sm font-semibold text-center flex flex-col items-center justify-center gap-0.5 cursor-not-allowed">
+          <span class="flex items-center gap-2"><i class="fas fa-lock"></i> {{ med.status_message|default:"Not Scheduled Yet" }}</span>
+          {% if med.is_overdue and med.overdue_minutes %}
+          <span class="text-xs font-normal text-amber-600">Overdue by {{ med.overdue_minutes }} min</span>
+          {% endif %}
+        </div>
+        {% endif %}
+        {% if not med.not_purchased_yet %}
+        <a href="/medicines/refill/{{ med.id }}/" class="px-3 py-2.5 bg-violet-50 border border-violet-200 text-violet-700 rounded-xl text-sm font-semibold hover:bg-violet-100 transition flex items-center gap-1" title="Refill Medicine">
+          <i class="fas fa-shopping-bag"></i> Refill
+        </a>
+        {% endif %}
+      {% else %}
+        <!-- Doctor view: show edit/delete options -->
+        <a href="/medicines/detail/{{ med.id }}/" class="flex-1 px-4 py-2.5 bg-blue-50 text-blue-700 border border-blue-200 rounded-xl text-sm font-semibold text-center hover:bg-blue-100 transition">
+          <i class="fas fa-eye mr-1"></i> View Details
+        </a>
+        {% if is_doctor and med.prescribed_by == user %}
+        <a href="/medicines/edit/{{ med.id }}/" class="px-3 py-2.5 bg-emerald-50 border border-emerald-200 text-emerald-700 rounded-xl text-sm hover:bg-emerald-100 transition" title="Edit">
+          <i class="fas fa-edit"></i>
+        </a>
+        <button type="button" onclick="openDeleteMedModal({{ med.id }}, '{{ med.name|escapejs }}')"
+          class="px-3 py-2.5 bg-red-50 border border-red-200 text-red-600 rounded-xl text-sm hover:bg-red-100 transition" title="Remove">
+          <i class="fas fa-trash"></i>
+        </button>
+        {% else %}
+        <form method="POST" action="/medicines/delete/{{ med.id }}/"
+              data-st-confirm="Are you sure you want to remove this medicine?"
+              data-st-confirm-title="Remove Medicine?"
+              data-st-confirm-variant="danger"
+              data-st-confirm-ok="Remove">
+          {% csrf_token %}
+          <button type="submit" class="px-3 py-2.5 bg-red-50 border border-red-200 text-red-600 rounded-xl text-sm hover:bg-red-100 transition">
+            <i class="fas fa-trash"></i>
+          </button>
+        </form>
+        {% endif %}
+      {% endif %}
+      <a href="/medicines/detail/{{ med.id }}/" class="px-3 py-2.5 bg-slate-100 text-slate-600 rounded-xl text-sm hover:bg-slate-200 transition">
+        <i class="fas fa-chart-line"></i>
+      </a>
+    </div>
+
+    {% if med.instructions %}
+    <div class="mt-3 p-2 bg-slate-50 rounded-lg text-xs text-slate-500">
+      <i class="fas fa-info-circle mr-1"></i> {{ med.instructions }}
+    </div>
+    {% endif %}
+
+    {% if med.is_expired %}
+    <div class="mt-2 p-2 bg-red-50 rounded-lg text-xs text-red-600 font-semibold">
+      <i class="fas fa-exclamation-circle mr-1"></i> ⚠️ This medicine has expired!
+    </div>
+    {% endif %}
+  </div>
+  {% endfor %}
+</div>
+
+{% else %}
+<div class="text-center py-16 text-slate-400">
+  <i class="fas fa-pills text-6xl mb-4 opacity-20 block"></i>
+  <h3 class="text-lg font-bold text-slate-500 mb-2">No Active Medicines</h3>
+  <p class="text-sm mb-4">
+    {% if is_patient %}Your doctor will add medicines to your prescription.{% else %}No medicines prescribed yet.{% endif %}
+  </p>
+  {% if is_patient %}
+  <a href="/connections/list/" class="px-5 py-2.5 bg-blue-600 text-white text-sm rounded-xl hover:bg-blue-700 transition">Find a Doctor</a>
+  {% endif %}
+</div>
+{% endif %}
+
+<!-- Expired / Inactive Medicines -->
+{% if expired_meds %}
+<div class="mb-3 flex items-center gap-2 mt-6">
+  <i class="fas fa-archive text-slate-400"></i>
+  <h3 class="font-bold text-slate-600">Completed / Expired Medicines</h3>
+</div>
+<div class="space-y-2">
+  {% for med in expired_meds %}
+  <div class="flex items-center gap-3 p-4 bg-slate-50 border border-slate-200 rounded-xl opacity-70">
+    <div class="w-10 h-10 bg-slate-200 rounded-xl flex items-center justify-center">
+      <i class="fas fa-capsules text-slate-400"></i>
+    </div>
+    <div class="flex-1">
+      <div class="font-semibold text-slate-600 text-sm">{{ med.name }}</div>
+      <div class="text-xs text-slate-400">{{ med.dosage }} · Ended {{ med.end_date|date:"M j, Y" }}</div>
+    </div>
+    <span class="px-2 py-1 bg-slate-200 text-slate-600 text-xs rounded-full font-medium">
+      {% if med.end_date and med.end_date < today %}Expired{% else %}Deactivated{% endif %}
+    </span>
+  </div>
+  {% endfor %}
+</div>
+{% endif %}
+
+<script>
+  const csrfToken = document.querySelector("[name=csrfmiddlewaretoken]").value;
+
+  function markMedicine(medId, action, btn) {
+    btn.disabled = true;
+    const origHTML = btn.innerHTML;
+    btn.innerHTML = '<i class="fas fa-spinner fa-spin mr-1"></i>Saving...';
+
+    fetch(`/medicines/mark/${medId}/`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/x-www-form-urlencoded",
+        "X-CSRFToken": csrfToken,
+      },
+      body: `action=${action}`,
+    })
+      .then((r) => r.json())
+      .then((data) => {
+        if (data.success) {
+          const taken = data.taken_today;
+          const max = data.max_doses;
+          document.getElementById(`dose-count-${medId}`).textContent =
+            `${taken}/${max}`;
+          const bar = document.getElementById(`dose-bar-${medId}`);
+          bar.style.width = `${Math.round((taken / max) * 100)}%`;
+
+          if (taken >= max) {
+            bar.classList.replace("bg-blue-500", "bg-emerald-500");
+            document.getElementById(`action-area-${medId}`).innerHTML =
+              `<div class="flex-1 px-4 py-2.5 bg-emerald-50 border border-emerald-200 text-emerald-700 rounded-xl text-sm font-semibold text-center flex items-center justify-center gap-2"><i class="fas fa-check-double"></i> All doses taken today ✓</div>`;
+          } else {
+            const nextDose = data.next_dose ? `<span class="text-xs font-normal text-emerald-600">Next dose: ${data.next_dose}</span>` : '';
+            document.getElementById(`action-area-${medId}`).innerHTML =
+              `<div class="flex-1 px-4 py-2.5 bg-emerald-50 border border-emerald-200 text-emerald-700 rounded-xl text-sm font-semibold text-center flex flex-col items-center justify-center gap-0.5"><span class="flex items-center gap-2"><i class="fas fa-check"></i> Dose Taken ✓</span>${nextDose}</div>`;
+          }
+          if (window.syncMedicineReminders) window.syncMedicineReminders();
+          showToast(
+            `✅ ${data.medicine_name || "Medicine"} marked as taken! Stock: ${data.stock}`,
+            "success",
+          );
+
+          if (data.suggest_pharmacy) {
+            setTimeout(
+              () =>
+                showToast(
+                  `⚠️ Stock low (${data.stock} left). <a href="#" onclick="findNearbyPharmacies(event)" class="underline font-bold">Find nearby pharmacy?</a>`,
+                  "warning",
+                ),
+              1500,
+            );
+          }
+        } else if (data.error === "overdose" || data.error === "already_taken") {
+          document.getElementById("overdoseMsg").textContent = data.message;
+          document.getElementById("overdoseModal").classList.remove("hidden");
+          btn.disabled = false;
+          btn.innerHTML = origHTML;
+        } else if (data.error === "dose_expired") {
+          showToast(data.message || "Dose window expired.", "warning");
+          btn.disabled = false;
+          btn.innerHTML = origHTML;
+        } else if (data.error === "not_time") {
+          showToast(`⏰ ${data.message}`, "error");
+          btn.disabled = false;
+          btn.innerHTML = origHTML;
+        } else if (data.error === "no_stock") {
+          showToast(data.message || "No stock available.", "warning");
+          btn.disabled = false;
+          btn.innerHTML = origHTML;
+        } else {
+          showToast(data.error || "Error marking medicine", "error");
+          btn.disabled = false;
+          btn.innerHTML = origHTML;
+        }
+      })
+      .catch(() => {
+        btn.disabled = false;
+        btn.innerHTML = origHTML;
+      });
+  }
+
+  function findNearbyPharmacies(event) {
+    if (event) event.preventDefault();
+    if (typeof window.openNearbyPharmacies === 'function') {
+      window.openNearbyPharmacies(event);
+    } else if (typeof window.findNearbyPharmacies === 'function' && window.findNearbyPharmacies !== findNearbyPharmacies) {
+      window.findNearbyPharmacies(event);
+    }
+  }
+
+  // Live countdown timers
+
+  let shownReminders = new Set();
+  async function loadReminders() {
+    try {
+      const resp = await fetch("/medicines/reminders/");
+      const data = await resp.json();
+      if (!data.reminders || data.reminders.length === 0) return;
+
+      const active = data.reminders.filter(
+        (r) =>
+          !r.taken &&
+          !r.missed &&
+          (r.dose_status === "DUE_NOW" ||
+            r.dose_status === "REMIND_LATER_ACTIVE" ||
+            r.dose_status === "UPCOMING"),
+      );
+      if (active.length === 0) return;
+
+      const section = document.getElementById("countdownSection");
+      const list = document.getElementById("countdownList");
+      section.classList.remove("hidden");
+
+      list.innerHTML = active
+        .slice(0, 5)
+        .map((r) => {
+          let timeText = "";
+          let classes = "bg-white/20";
+          if (
+            r.dose_status === "DUE_NOW" ||
+            r.dose_status === "REMIND_LATER_ACTIVE"
+          ) {
+            classes = "bg-red-500/40";
+            if (r.is_overdue && r.overdue_minutes) {
+              timeText = `<span class="text-yellow-200 font-bold animate-pulse">⏰ Overdue by ${r.overdue_minutes} min</span>`;
+            } else {
+              timeText = `<span class="text-yellow-200 font-bold animate-pulse">🔔 Due Now</span>`;
+            }
+          } else if (r.dose_status === "UPCOMING") {
+            timeText = `<span class="medicine-live-countdown font-semibold" data-seconds="${r.seconds_until}">00:00:00</span>`;
+          }
+          const statusLabel =
+            r.dose_status === "UPCOMING" ? "⏳ Upcoming" : "🔔 Due Now";
+          return `<div class="${classes} rounded-xl px-3 py-2 flex items-center justify-between">
+        <span class="text-sm font-semibold">💊 ${r.name} (${r.dosage}) ${statusLabel}</span>
+        <span class="text-xs">${r.time_display || r.time} · ${timeText}</span>
+      </div>`;
+        })
+        .join("");
+      setTimeout(startMedicineCountdowns, 100);
+    } catch (e) {}
+  }
+
+  function triggerReminderPopup(r) {
+    /* Popups handled by medicine_reminders.js using the same status engine */
+    return;
+  }
+
+  async function checkDailyHealth() {
+    try {
+      const resp = await fetch("/medicines/health-check/");
+      const data = await resp.json();
+      if (!data.checked) showHealthCheckPopup();
+    } catch (e) {}
+  }
+
+  function showHealthCheckPopup() {
+    if (document.getElementById("healthCheckPopup")) return;
+    const popup = document.createElement("div");
+    popup.id = "healthCheckPopup";
+    popup.className =
+      "fixed bottom-6 left-1/2 -translate-x-1/2 z-[9999] bg-white border border-slate-200 shadow-2xl rounded-2xl p-5 w-80";
+    popup.innerHTML = `
+    <div class="flex items-center gap-3 mb-3">
+      <div class="w-10 h-10 bg-blue-100 rounded-xl flex items-center justify-center"><i class="fas fa-heart text-blue-600"></i></div>
+      <div><div class="font-bold text-slate-800">Daily Health Check</div><div class="text-xs text-slate-500">How are you feeling today?</div></div>
+    </div>
+    <div class="grid grid-cols-3 gap-2 mb-3">
+      <button onclick="submitHealthCheck('good', this)" class="py-2 bg-emerald-50 border border-emerald-200 text-emerald-700 rounded-xl text-sm font-semibold hover:bg-emerald-100 transition">😊 Good</button>
+      <button onclick="submitHealthCheck('okay', this)" class="py-2 bg-amber-50 border border-amber-200 text-amber-700 rounded-xl text-sm font-semibold hover:bg-amber-100 transition">😐 Okay</button>
+      <button onclick="submitHealthCheck('not_good', this)" class="py-2 bg-red-50 border border-red-200 text-red-700 rounded-xl text-sm font-semibold hover:bg-red-100 transition">😟 Not Good</button>
+    </div>
+    <button onclick="document.getElementById('healthCheckPopup').remove()" class="w-full text-xs text-slate-400 hover:text-slate-600">Remind me later</button>`;
+    document.body.appendChild(popup);
+  }
+
+  async function submitHealthCheck(feeling, btn) {
+    try {
+      const resp = await fetch("/medicines/health-check/", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/x-www-form-urlencoded",
+          "X-CSRFToken": csrfToken,
+        },
+        body: `feeling=${feeling}`,
+      });
+      const data = await resp.json();
+      if (data.success) {
+        document.getElementById("healthCheckPopup")?.remove();
+        const emoji =
+          feeling === "good" ? "😊" : feeling === "okay" ? "😐" : "😟";
+        showToast(`${emoji} Health check saved!`, "success");
+      }
+    } catch (e) {}
+  }
+
+  // Auto-refresh every minute to update time-based buttons
+  setTimeout(() => location.reload(), 60000);
+
+  loadReminders();
+  setInterval(loadReminders, 10000);
+  setTimeout(checkDailyHealth, 3000);
+
+function startMedicineCountdowns() {
+
+  document
+    .querySelectorAll('.medicine-live-countdown')
+    .forEach(timer => {
+
+      // avoid duplicate intervals
+      if (timer.dataset.running === "true") return;
+      timer.dataset.running = "true";
+
+      let seconds =
+        parseInt(timer.dataset.seconds || 0);
+
+      function update() {
+
+        if (seconds <= 0) {
+          timer.innerHTML =
+            '<span class="text-yellow-200 font-bold animate-pulse">🔔 Due Now</span>';
+          return;
+        }
+
+        const h =
+          Math.floor(seconds / 3600);
+
+        const m =
+          Math.floor((seconds % 3600) / 60);
+
+        const s =
+          seconds % 60;
+
+        timer.innerText =
+          `in ${h > 0 ? h + 'h ' : ''}${m}m ${String(s).padStart(2,'0')}s`;
+
+        seconds--;
+      }
+
+      update();
+      setInterval(update, 1000);
+    });
+}
+
+</script>
+
+{% if is_doctor %}
+<div id="deleteMedModal" class="fixed inset-0 bg-black/50 z-50 hidden flex items-center justify-center p-4">
+  <div class="bg-white rounded-2xl shadow-2xl w-full max-w-md p-6">
+    <h3 class="font-bold text-slate-800 text-lg mb-2">Remove Medicine</h3>
+    <p class="text-sm text-slate-600 mb-4">Are you sure you want to remove <strong id="deleteMedName"></strong>?</p>
+    <form id="deleteMedForm" method="POST" action="">
+      {% csrf_token %}
+      <input type="text" name="deletion_reason" placeholder="Reason (optional)"
+             class="w-full px-3 py-2 border border-slate-200 rounded-xl text-sm mb-4">
+      <div class="flex gap-3">
+        <button type="button" onclick="closeDeleteMedModal()" class="flex-1 px-4 py-2.5 bg-slate-100 text-slate-700 rounded-xl font-semibold text-sm">Cancel</button>
+        <button type="submit" class="flex-1 px-4 py-2.5 bg-red-600 text-white rounded-xl font-semibold text-sm">Delete</button>
+      </div>
+    </form>
+  </div>
+</div>
+<script>
+function openDeleteMedModal(id, name) {
+  document.getElementById('deleteMedName').textContent = name;
+  document.getElementById('deleteMedForm').action = '/medicines/delete/' + id + '/';
+  document.getElementById('deleteMedModal').classList.remove('hidden');
+}
+function closeDeleteMedModal() {
+  document.getElementById('deleteMedModal').classList.add('hidden');
+}
+</script>
+{% endif %}
+
+{% endblock %}
+ 

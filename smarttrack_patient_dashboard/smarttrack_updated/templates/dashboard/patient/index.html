@@ -1,0 +1,698 @@
+{% extends 'base_dashboard.html' %}
+{% block title %}Patient Dashboard{% endblock %}
+{% block page_title %}{{ greeting }}, {{ user.first_name }} 👋{% endblock %}
+{% block page_subtitle %}{{ today|date:"l, F j, Y" }} · ID: {{ user.unique_id }}{% endblock %}
+
+{% block content %}
+{% load static %}
+<form style="display:none">{% csrf_token %}</form>
+
+{% include 'dashboard/includes/dynamic_risk_cards.html' with risk=risk %}
+
+<!-- Pending Requests Alert -->
+{% if pending_requests %}
+<div class="mb-5 p-4 bg-blue-50 border border-blue-200 rounded-2xl flex items-center justify-between">
+  <div class="flex items-center gap-3">
+    <div class="w-10 h-10 bg-blue-100 rounded-xl flex items-center justify-center"><i class="fas fa-user-plus text-blue-600"></i></div>
+    <div>
+      <div class="font-semibold text-blue-800 text-sm">New Connection Requests</div>
+      <div class="text-blue-600 text-xs">{{ pending_requests.count }} doctor(s) want to connect with you</div>
+    </div>
+  </div>
+  <a href="/connections/list/" class="px-4 py-2 bg-blue-600 text-white text-xs font-semibold rounded-xl hover:bg-blue-700 transition">Review</a>
+</div>
+{% endif %}
+
+<!-- Pending Caregiver Requests -->
+{% if pending_caregiver_requests %}
+<div class="mb-5 p-4 bg-teal-50 border border-teal-200 rounded-2xl">
+  <div class="flex items-center gap-3 mb-3">
+    <div class="w-10 h-10 bg-teal-100 rounded-xl flex items-center justify-center">
+      <i class="fas fa-hand-holding-heart text-teal-600"></i>
+    </div>
+    <div>
+      <div class="font-semibold text-teal-900 text-sm">Caregiver Connection Request{% if pending_caregiver_requests.count > 1 %}s{% endif %}</div>
+      <div class="text-xs text-teal-700">Review and approve caregiver access to your healthcare activities</div>
+    </div>
+  </div>
+  {% for req in pending_caregiver_requests %}
+  <div class="p-4 bg-white rounded-xl border border-teal-200 mb-2">
+    <div class="flex items-center gap-3 mb-3">
+      <div class="w-10 h-10 bg-teal-100 rounded-full flex items-center justify-center font-bold text-teal-700 text-sm">
+        {{ req.caregiver.first_name|first }}{{ req.caregiver.last_name|first }}
+      </div>
+      <div>
+        <div class="font-semibold text-slate-800">{{ req.caregiver.get_full_name }}</div>
+        <div class="text-xs text-slate-500">Relationship: Caregiver · Access: Patient Assistance</div>
+      </div>
+    </div>
+    <p class="text-sm text-slate-600 mb-3">{{ req.caregiver.get_full_name }} wants caregiver access to help manage your healthcare activities.</p>
+    <div class="flex gap-2">
+      <button type="button" onclick="respondCaregiverRequest({{ req.id }}, 'accept')"
+        class="px-4 py-2 bg-emerald-600 text-white text-sm rounded-lg hover:bg-emerald-700 transition font-semibold">Accept</button>
+      <button type="button" onclick="openRejectCaregiverModal({{ req.id }})"
+        class="px-4 py-2 bg-white border border-red-200 text-red-600 text-sm rounded-lg hover:bg-red-50 transition">Reject</button>
+    </div>
+  </div>
+  {% endfor %}
+</div>
+{% endif %}
+
+<!-- Low Stock Alert Cards -->
+{% if stock_alert_cards %}
+<div id="stockAlertCards" class="mb-5 space-y-3">
+  {% for alert in stock_alert_cards %}
+  <div id="stockAlertCard-{{ alert.medicine_id }}" data-med-id="{{ alert.medicine_id }}" data-severity="{{ alert.severity }}"
+       class="stock-alert-card p-4 rounded-2xl border {% if alert.severity == 'emergency' %}bg-red-100 border-red-300 animate-pulse{% elif alert.severity == 'critical' %}bg-red-50 border-red-200 animate-pulse{% elif alert.severity == 'high' %}bg-orange-50 border-orange-200{% else %}bg-amber-50 border-amber-200{% endif %}">
+    <div class="flex items-start gap-3">
+      <div class="w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0 {% if alert.severity == 'emergency' or alert.severity == 'critical' %}bg-red-200 text-red-700{% elif alert.severity == 'high' %}bg-orange-200 text-orange-700{% else %}bg-amber-200 text-amber-700{% endif %}">
+        <i class="fas fa-exclamation-triangle"></i>
+      </div>
+      <div class="flex-1 min-w-0">
+        <div class="font-bold text-sm {% if alert.severity == 'emergency' or alert.severity == 'critical' %}text-red-800{% elif alert.severity == 'high' %}text-orange-800{% else %}text-amber-800{% endif %}">
+          ⚠ Medicine Stock Running Low
+          {% if alert.severity == 'critical' or alert.severity == 'emergency' %}
+          <span class="ml-1 text-xs font-black uppercase tracking-wide">({{ alert.severity_label }})</span>
+          {% endif %}
+        </div>
+        <div class="font-bold text-slate-800 mt-1">{{ alert.name }}</div>
+        <div class="text-sm text-slate-600 mt-0.5">Only <strong>{{ alert.remaining_stock }}</strong> dose{{ alert.remaining_stock|pluralize }} remaining</div>
+        <p class="text-xs text-slate-500 mt-1">{{ alert.severity_message }}</p>
+        <div class="flex flex-wrap gap-2 mt-3">
+          <button type="button" class="st-inv-refill-now px-3 py-2 bg-emerald-600 text-white text-xs font-semibold rounded-xl hover:bg-emerald-700 transition" data-med-id="{{ alert.medicine_id }}" data-med-name="{{ alert.name|escape }}" data-prescribed="{{ alert.prescribed_quantity|default:0 }}">
+            <i class="fas fa-shopping-bag mr-1"></i> Refill Now
+          </button>
+          <button type="button" class="st-inv-find-pharmacy px-3 py-2 bg-blue-600 text-white text-xs font-semibold rounded-xl hover:bg-blue-700 transition">
+            <i class="fas fa-map-marker-alt mr-1"></i> Find Nearby Pharmacies
+          </button>
+          <button type="button" class="st-inv-quick-refill px-3 py-2 bg-violet-600 text-white text-xs font-semibold rounded-xl hover:bg-violet-700 transition" data-med-id="{{ alert.medicine_id }}" data-med-name="{{ alert.name|escape }}" data-prescribed="{{ alert.prescribed_quantity|default:0 }}" data-stock="{{ alert.remaining_stock }}">
+            <i class="fas fa-check-circle mr-1"></i> Already Refilled
+          </button>
+          <button type="button" class="st-inv-snooze px-3 py-2 bg-white border border-slate-200 text-slate-600 text-xs font-semibold rounded-xl hover:bg-slate-50 transition" data-med-id="{{ alert.medicine_id }}">
+            Remind Me Later
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+  {% endfor %}
+</div>
+{% endif %}
+
+<!-- LIVE COUNTDOWN BAR (Requirement 5) -->
+<div id="liveCountdownBar" class="mb-6 p-4 bg-gradient-to-r from-orange-400 to-orange-600 rounded-[24px] shadow-lg shadow-orange-200 text-white flex items-center justify-between hidden animate-pulse">
+  <div class="flex items-center gap-3">
+    <div class="w-10 h-10 bg-white/20 rounded-xl flex items-center justify-center"><i class="fas fa-clock text-white"></i></div>
+    <div>
+      <div class="text-xs font-medium opacity-90">Next Dose In:</div>
+      <div id="countdownTimer" class="text-xl font-black tracking-wider">00:00:00</div>
+    </div>
+  </div>
+  <div class="text-right">
+    <div id="countdownMedName" class="font-bold text-sm">Loading...</div>
+    <div id="countdownMedTime" class="text-xs opacity-80">--:--</div>
+  </div>
+</div>
+
+<!-- Stats Row -->
+<div class="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
+  <a href="/medicines/" class="bg-gradient-to-br from-blue-600 to-blue-700 rounded-2xl p-5 text-white shadow-lg shadow-blue-500/20 block hover:opacity-90 transition cursor-pointer">
+    <div class="flex items-start justify-between mb-3">
+      <div class="w-10 h-10 bg-white/20 rounded-xl flex items-center justify-center"><i class="fas fa-pills text-white"></i></div>
+      <span class="text-xs bg-white/20 px-2 py-0.5 rounded-full">Active</span>
+    </div>
+    <div class="text-3xl font-black">{{ medicines.count }}</div>
+    <div class="text-blue-200 text-sm mt-1">Medicines</div>
+  </a>
+  <a href="/medicines/analytics/" class="bg-gradient-to-br from-emerald-500 to-teal-600 rounded-2xl p-5 text-white shadow-lg shadow-emerald-500/20 block hover:opacity-90 transition cursor-pointer">
+    <div class="flex items-start justify-between mb-3">
+      <div class="w-10 h-10 bg-white/20 rounded-xl flex items-center justify-center"><i class="fas fa-check-circle text-white"></i></div>
+      <span class="text-xs bg-white/20 px-2 py-0.5 rounded-full">7 days</span>
+    </div>
+    <div class="text-3xl font-black">{{ compliance_pct }}%</div>
+    <div class="text-emerald-200 text-sm mt-1">Compliance</div>
+  </a>
+  <a href="/connections/list/" class="bg-gradient-to-br from-violet-600 to-purple-700 rounded-2xl p-5 text-white shadow-lg shadow-violet-500/20 block hover:opacity-90 transition cursor-pointer">
+    <div class="flex items-start justify-between mb-3">
+      <div class="w-10 h-10 bg-white/20 rounded-xl flex items-center justify-center"><i class="fas fa-user-md text-white"></i></div>
+      <span class="text-xs bg-white/20 px-2 py-0.5 rounded-full">Connected</span>
+    </div>
+    <div class="text-3xl font-black">{{ connected_doctors.count }}</div>
+    <div class="text-violet-200 text-sm mt-1">Doctors</div>
+  </a>
+  <a href="/appointments/" class="bg-gradient-to-br from-rose-500 to-pink-600 rounded-2xl p-5 text-white shadow-lg shadow-rose-500/20 block hover:opacity-90 transition cursor-pointer">
+    <div class="flex items-start justify-between mb-3">
+      <div class="w-10 h-10 bg-white/20 rounded-xl flex items-center justify-center"><i class="fas fa-calendar text-white"></i></div>
+      <span class="text-xs bg-white/20 px-2 py-0.5 rounded-full">Upcoming</span>
+    </div>
+    <div class="text-3xl font-black">{{ upcoming_apts.count }}</div>
+    <div class="text-rose-200 text-sm mt-1">Appointments</div>
+  </a>
+</div>
+
+<!-- Today's Activities + Upcoming Medicines — balanced row -->
+<div class="grid grid-cols-1 md:grid-cols-2 gap-4 md:gap-6 mb-6">
+
+  <!-- LEFT: Today's Activities -->
+  <div class="bg-white rounded-2xl shadow-sm border border-slate-100 flex flex-col min-h-[300px]">
+    <div class="flex items-center justify-between px-5 py-4 border-b border-slate-100 shrink-0">
+      <h3 class="font-bold text-slate-800 text-sm flex items-center gap-2">
+        <i class="fas fa-running text-blue-500"></i> Today's Activities
+      </h3>
+      <a href="{% url 'activity_list' %}" class="text-xs px-3 py-1.5 bg-blue-50 border border-blue-200 text-blue-700 rounded-lg hover:bg-blue-100 transition font-semibold">View All</a>
+    </div>
+    <div id="upcomingActsList" class="flex-1 px-3 py-3 space-y-2 overflow-y-auto max-h-[280px]">
+      {% for item in dashboard_activities %}
+      {% include 'dashboard/patient/includes/dashboard_activity_item.html' with item=item %}
+      {% empty %}
+      <div class="flex flex-col items-center justify-center py-10 text-slate-400">
+        <i class="fas fa-calendar-day text-2xl mb-2 opacity-40"></i>
+        <p class="text-sm">No activities scheduled for today</p>
+      </div>
+      {% endfor %}
+    </div>
+    {% if activity_sections.missed %}
+    <div class="px-4 pb-3 pt-1 shrink-0">
+      <span class="inline-flex items-center gap-1.5 text-xs font-semibold text-red-700 bg-red-50 border border-red-100 px-2.5 py-1 rounded-full">
+        <i class="fas fa-exclamation-circle"></i>
+        {{ activity_sections.missed|length }} missed activit{{ activity_sections.missed|length|pluralize:"y,ies" }} today
+      </span>
+    </div>
+    {% endif %}
+  </div>
+
+  <!-- RIGHT: Upcoming Medicines -->
+  <div class="bg-white rounded-2xl shadow-sm border border-slate-100 flex flex-col min-h-[300px]">
+    <div class="flex items-center justify-between px-5 py-4 border-b border-slate-100 shrink-0">
+      <h3 class="font-bold text-slate-800 text-sm flex items-center gap-2">
+        <i class="fas fa-hourglass-half text-orange-500"></i> Upcoming Medicines
+      </h3>
+      <a href="{% url 'medicine_list' %}" class="text-xs px-3 py-1.5 bg-emerald-50 border border-emerald-200 text-emerald-700 rounded-lg hover:bg-emerald-100 transition font-semibold">View All</a>
+    </div>
+    <div id="upcomingMedsList" class="flex-1 px-3 py-3 space-y-2 overflow-y-auto max-h-[280px]">
+      <div class="flex flex-col items-center justify-center py-10 text-slate-400">
+        <i class="fas fa-spinner fa-spin text-xl mb-2"></i>
+        <p class="text-sm">Loading today's schedule…</p>
+      </div>
+    </div>
+    <div id="medMissedBadge" class="hidden px-4 pb-3 pt-1 shrink-0">
+      <span class="inline-flex items-center gap-1.5 text-xs font-semibold text-red-700 bg-red-50 border border-red-100 px-2.5 py-1 rounded-full">
+        <i class="fas fa-exclamation-circle"></i>
+        <span id="medMissedBadgeText"></span>
+      </span>
+    </div>
+  </div>
+</div>
+
+<!-- Main Grid -->
+<div class="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-6">
+  <div class="bg-white rounded-2xl shadow-sm border border-slate-100 p-6">
+    <h3 class="font-bold text-slate-800 mb-4 flex items-center gap-2">
+      <i class="fas fa-chart-pie text-blue-500"></i> Weekly Compliance
+      <a href="/medicines/analytics/" class="ml-auto text-xs text-blue-500 hover:underline">View all</a>
+    </h3>
+    <div class="flex items-center justify-center mb-4">
+      <div class="relative w-28 h-28">
+        <svg viewBox="0 0 36 36" class="w-28 h-28 -rotate-90">
+          <path d="M18 2.0845 a15.9155 15.9155 0 0 1 0 31.831 a15.9155 15.9155 0 0 1 0 -31.831" fill="none" stroke="#E2E8F0" stroke-width="3"/>
+          <path d="M18 2.0845 a15.9155 15.9155 0 0 1 0 31.831 a15.9155 15.9155 0 0 1 0 -31.831" fill="none"
+            stroke="{% if compliance_pct >= 80 %}#10b981{% elif compliance_pct >= 50 %}#f59e0b{% else %}#ef4444{% endif %}"
+            stroke-width="3" stroke-dasharray="{{ compliance_pct }}, 100" stroke-linecap="round"/>
+        </svg>
+        <div class="absolute inset-0 flex flex-col items-center justify-center">
+          <span class="text-2xl font-black text-slate-800">{{ compliance_pct }}%</span>
+          <span class="text-xs text-slate-500">This week</span>
+        </div>
+      </div>
+    </div>
+    <!-- Mini bar chart -->
+    <div class="flex justify-between text-xs text-slate-400 mb-1">
+      {% for d in chart_data %}<span>{{ d.day }}</span>{% endfor %}
+    </div>
+    <div class="flex items-end gap-1 h-12">
+      {% for d in chart_data %}
+      <div class="flex-1 rounded-t-sm transition-all" style="height:{{ d.pct }}%; min-height:3px; background:{% if d.pct >= 80 %}#10b981{% elif d.pct >= 50 %}#f59e0b{% else %}#ef4444{% endif %};" title="{{ d.day }}: {{ d.taken }}/{{ d.total }}"></div>
+      {% endfor %}
+    </div>
+    <div class="mt-3 flex items-center justify-between text-xs">
+      <span class="text-slate-500">{{ total_taken }} taken / {{ total_logs }} scheduled</span>
+      {% if risk %}
+      <a href="/medicines/analytics/" class="px-2 py-0.5 rounded-full font-semibold text-xs
+        {% if risk.level == 'critical' %}bg-red-200 text-red-800
+        {% elif risk.level == 'high' %}bg-red-100 text-red-700
+        {% elif risk.level == 'medium' %}bg-amber-100 text-amber-700
+        {% else %}bg-emerald-100 text-emerald-700{% endif %}">{{ risk.level|title }} Risk · {{ risk.score }}/100</a>
+      {% endif %}
+    </div>
+    {% if risk and risk.level_message %}
+    <div class="mt-2 p-2.5 rounded-xl text-xs
+      {% if risk.level == 'critical' or risk.level == 'high' %}bg-red-50 text-red-800 border border-red-100
+      {% elif risk.level == 'medium' %}bg-amber-50 text-amber-800 border border-amber-100
+      {% else %}bg-emerald-50 text-emerald-800 border border-emerald-100{% endif %}">
+      {{ risk.level_message }}
+    </div>
+    {% endif %}
+  </div>
+
+  <!-- Today's Medicines (Read-only for patient) -->
+  <div class="lg:col-span-2 bg-white rounded-2xl shadow-sm border border-slate-100 p-6">
+    <div class="flex items-center justify-between mb-4">
+      <h3 class="font-bold text-slate-800 flex items-center gap-2"><i class="fas fa-calendar-alt text-emerald-500"></i> Today's Schedule</h3>
+      <a href="/medicines/" class="text-xs px-3 py-1.5 bg-emerald-50 border border-emerald-200 text-emerald-700 rounded-xl hover:bg-emerald-100 transition font-semibold">View All</a>
+    </div>
+    {% if medicines %}
+    <div class="space-y-2">
+      {% for med in medicines|slice:":5" %}
+      <div class="flex items-center gap-3 p-3 rounded-xl border border-slate-100 hover:bg-slate-50 transition" id="med-{{ med.id }}">
+        <div class="w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0
+          {% if med.color == 'blue' %}bg-blue-100 text-blue-600
+          {% elif med.color == 'green' %}bg-emerald-100 text-emerald-600
+          {% elif med.color == 'red' %}bg-red-100 text-red-600
+          {% elif med.color == 'purple' %}bg-violet-100 text-violet-600
+          {% else %}bg-amber-100 text-amber-600{% endif %}">
+          <i class="fas fa-capsules text-sm"></i>
+        </div>
+        <div class="flex-1 min-w-0">
+          <div class="font-semibold text-slate-800 text-sm truncate">{{ med.name }}</div>
+          <div class="text-xs text-slate-500">{{ med.dosage }} · {{ med.get_frequency_display }}</div>
+          {% if med.prescribed_by %}<div class="text-xs text-blue-600">Dr. {{ med.prescribed_by.get_full_name }}</div>{% endif %}
+        </div>
+        <div class="flex items-center gap-2 flex-shrink-0">
+          <span class="text-xs {% if med.is_critical_stock %}text-red-600 bg-red-50 border border-red-200{% elif med.is_low_stock %}text-amber-600 bg-amber-50{% else %}text-slate-500 bg-slate-100{% endif %} px-2 py-0.5 rounded-full">
+            {{ med.stock_quantity }} left
+          </span>
+          {% if med.dose_button_state == 'due' or med.dose_button_state == 'snoozed' %}
+          <button onclick="markMedicine({{ med.id }}, 'taken', this)" id="mark-btn-{{ med.id }}"
+            class="px-3 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-semibold rounded-lg transition {% if med.dose_button_state == 'snoozed' %}ring-2 ring-amber-300{% endif %}">
+            <i class="fas fa-check mr-1"></i>{% if med.dose_button_state == 'snoozed' %}Take Medicine{% else %}Mark Taken{% endif %}
+          </button>
+          {% elif med.dose_button_state == 'all_taken' or med.dose_button_state == 'taken_waiting' %}
+          <span class="px-3 py-1.5 bg-emerald-50 border border-emerald-200 text-emerald-700 text-xs font-semibold rounded-lg flex items-center gap-1">
+            <i class="fas fa-check-double"></i> {% if med.dose_button_state == 'all_taken' %}Done{% else %}Taken ✓{% endif %}
+          </span>
+          {% elif med.dose_button_state == 'missed' %}
+          <span class="px-3 py-1.5 bg-red-50 border border-red-200 text-red-700 text-xs font-semibold rounded-lg flex items-center gap-1">
+            <i class="fas fa-times-circle"></i> Missed
+          </span>
+          {% else %}
+          <span class="px-3 py-1.5 bg-slate-100 text-slate-400 text-xs font-semibold rounded-lg flex items-center gap-1 cursor-not-allowed" title="{% if med.next_slot_display %}Next dose at {{ med.next_slot_display }}{% else %}Not scheduled yet{% endif %}">
+            <i class="fas fa-lock"></i> Locked
+          </span>
+          {% endif %}
+        </div>
+      </div>
+      {% endfor %}
+    </div>
+    {% if medicines.count > 5 %}
+    <a href="/medicines/" class="mt-3 block text-center text-sm text-blue-600 hover:underline">View all {{ medicines.count }} medicines →</a>
+    {% endif %}
+    {% else %}
+    <div class="text-center py-8 text-slate-400">
+      <i class="fas fa-pills text-4xl mb-3 opacity-30 block"></i>
+      <p class="text-sm">No active medicines</p>
+    </div>
+    {% endif %}
+  </div>
+</div>
+
+<!-- Appointments + Doctors -->
+<div class="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
+
+  <!-- Upcoming Appointments -->
+  <div class="bg-white rounded-2xl shadow-sm border border-slate-100 p-6">
+    <div class="flex items-center justify-between mb-4">
+      <h3 class="font-bold text-slate-800 flex items-center gap-2"><i class="fas fa-calendar-check text-violet-500"></i> Appointments</h3>
+      <div class="flex gap-2">
+        <a href="/appointments/book/" class="text-xs px-3 py-1.5 bg-violet-600 text-white rounded-xl hover:bg-violet-700 transition font-semibold">Book</a>
+        <a href="/appointments/" class="text-xs px-3 py-1.5 bg-slate-100 text-slate-600 rounded-xl hover:bg-slate-200 transition">All</a>
+      </div>
+    </div>
+    {% if upcoming_apts %}
+    <div class="space-y-3">
+      {% for apt in upcoming_apts|slice:":3" %}
+      <div class="flex items-center gap-3 p-3 rounded-xl border border-slate-100 hover:bg-slate-50 transition">
+        <div class="w-12 h-12 rounded-xl flex flex-col items-center justify-center flex-shrink-0
+          {% if apt.appointment_type == 'video' or apt.appointment_type == 'emergency_video' %}bg-blue-100{% else %}bg-violet-100{% endif %}">
+          <span class="text-base font-black {% if apt.appointment_type == 'video' or apt.appointment_type == 'emergency_video' %}text-blue-700{% else %}text-violet-700{% endif %}">{{ apt.appointment_date|date:"j" }}</span>
+          <span class="text-xs {% if apt.appointment_type == 'video' or apt.appointment_type == 'emergency_video' %}text-blue-500{% else %}text-violet-500{% endif %}">{{ apt.appointment_date|date:"M" }}</span>
+        </div>
+        <div class="flex-1 min-w-0">
+          <div class="font-semibold text-slate-800 text-sm">Dr. {{ apt.doctor.get_full_name }}</div>
+          <div class="text-xs text-slate-500">{{ apt.appointment_time|time:"g:i A" }} · {{ apt.get_appointment_type_display }}</div>
+        </div>
+        <div class="flex flex-col items-end gap-1">
+          <span class="text-xs px-2 py-0.5 rounded-full font-semibold
+            {% if apt.status == 'confirmed' or apt.status == 'ongoing' %}bg-emerald-100 text-emerald-700
+            {% elif apt.status == 'pending_doctor_confirmation' %}bg-red-100 text-red-700
+            {% elif apt.status == 'pending_confirmation' %}bg-amber-100 text-amber-700
+            {% elif apt.status == 'doctor_confirmed' %}bg-blue-100 text-blue-700
+            {% elif apt.status == 'patient_confirmed' %}bg-indigo-100 text-indigo-700
+            {% else %}bg-slate-100 text-slate-600{% endif %}">{{ apt.get_status_display }}</span>
+          {% if apt.appointment_type == 'video' or apt.appointment_type == 'emergency_video' %}
+          {% if apt.status == 'confirmed' or apt.status == 'ongoing' %}
+          {% if apt.video_link %}
+          <button type="button"
+            data-join-video="{{ apt.video_link }}"
+            onclick="return smartTrackJoinVideoCall(this, event)"
+            class="join-video-btn text-xs text-blue-600 hover:underline"><i class="fas fa-video mr-1"></i>Join Video Call</button>
+          {% endif %}
+          {% elif apt.is_pending_approval %}
+          <span class="text-[10px] text-amber-600">Awaiting doctor</span>
+          {% endif %}
+          {% endif %}
+        </div>
+      </div>
+      {% endfor %}
+    </div>
+    {% else %}
+    <div class="text-center py-6 text-slate-400">
+      <i class="fas fa-calendar text-3xl mb-2 opacity-30 block"></i>
+      <p class="text-sm">No upcoming appointments</p>
+    </div>
+    {% endif %}
+  </div>
+
+  <!-- Connected Doctors -->
+  <div class="bg-white rounded-2xl shadow-sm border border-slate-100 p-6">
+    <div class="flex items-center justify-between mb-4">
+      <h3 class="font-bold text-slate-800 flex items-center gap-2"><i class="fas fa-user-md text-blue-500"></i> My Doctors</h3>
+      <a href="/connections/list/" class="text-xs text-blue-600 hover:underline">Find doctors</a>
+    </div>
+    {% if connected_doctors %}
+    <div class="space-y-3">
+      {% for conn in connected_doctors|slice:":4" %}
+      <div class="flex items-center gap-3 p-3 rounded-xl border border-slate-100 hover:bg-slate-50 transition">
+        <div class="relative flex-shrink-0">
+          {% if conn.doctor.doctor_profile.profile_photo %}
+          <img src="{{ conn.doctor.doctor_profile.profile_photo.url }}" alt="Dr. {{ conn.doctor.get_full_name }}"
+            class="w-10 h-10 rounded-xl object-cover">
+          {% else %}
+          <div class="w-10 h-10 bg-gradient-to-br from-blue-500 to-violet-600 rounded-xl flex items-center justify-center text-white font-bold text-sm">
+            {{ conn.doctor.first_name|first }}{{ conn.doctor.last_name|first }}
+          </div>
+          {% endif %}
+        </div>
+        <div class="flex-1 min-w-0">
+          <div class="font-semibold text-slate-800 text-sm">Dr. {{ conn.doctor.get_full_name }}</div>
+          {% if conn.doctor.doctor_profile.specialty %}<div class="text-xs text-slate-500">{{ conn.doctor.doctor_profile.get_specialty_display }}S</div>{% endif %}
+        </div>
+        <div class="flex items-center gap-1">
+          <a href="/messages/?with={{ conn.doctor.id }}" class="p-2 text-blue-600 hover:bg-blue-50 rounded-lg transition" title="Message"><i class="fas fa-comment text-sm"></i></a>
+          <a href="/appointments/book/" class="p-2 text-violet-600 hover:bg-violet-50 rounded-lg transition" title="Book Appointment"><i class="fas fa-calendar-plus text-sm"></i></a>
+        </div>
+      </div>
+      {% endfor %}
+    </div>
+    {% else %}
+    <div class="text-center py-6 text-slate-400">
+      <i class="fas fa-user-doctor text-3xl mb-2 opacity-30 block"></i>
+      <p class="text-sm">No doctors connected yet</p>
+      <a href="/connections/list/" class="mt-2 text-blue-600 text-sm hover:underline block">Find a doctor</a>
+    </div>
+    {% endif %}
+  </div>
+</div>
+
+<!-- My Caregiver Section -->
+<div class="bg-white rounded-2xl shadow-sm border border-slate-100 p-6 mb-6">
+  <h3 class="font-bold text-slate-800 mb-4 flex items-center gap-2">
+    <i class="fas fa-hand-holding-heart text-purple-500"></i> My Caregiver
+  </h3>
+
+  {% if active_caregivers %}
+    {% with caregiver_assign=active_caregivers.0 %}
+    <div class="bg-slate-50 rounded-2xl p-5 border border-slate-100 flex flex-col md:flex-row items-center gap-6 transition hover:shadow-md">
+      <!-- Profile Image -->
+      <div class="relative flex-shrink-0">
+        {% if caregiver_assign.caregiver.caregiver_profile.profile_photo %}
+          <img src="{{ caregiver_assign.caregiver.caregiver_profile.profile_photo.url }}"
+               alt="{{ caregiver_assign.caregiver.get_full_name }}"
+               class="w-20 h-20 rounded-2xl object-cover border-4 border-white shadow-sm">
+        {% else %}
+          <div class="w-20 h-20 bg-gradient-to-br from-purple-500 to-pink-600 rounded-2xl flex items-center justify-center text-white font-bold text-xl shadow-sm">
+            {{ caregiver_assign.caregiver.first_name|first }}{{ caregiver_assign.caregiver.last_name|first }}
+          </div>
+        {% endif %}
+        <span class="absolute bottom-0 right-0 w-5 h-5 bg-emerald-500 border-2 border-white rounded-full"></span>
+      </div>
+
+      <!-- Details -->
+      <div class="flex-1 text-center md:text-left space-y-1">
+        <div class="font-bold text-slate-800 text-lg">{{ caregiver_assign.caregiver.get_full_name }}</div>
+        <div class="flex flex-wrap justify-center md:justify-start gap-x-4 gap-y-1 text-xs text-slate-500">
+          <span class="flex items-center gap-1"><i class="fas fa-id-card opacity-60"></i> {{ caregiver_assign.caregiver.unique_id }}</span>
+          <span class="flex items-center gap-1"><i class="fas fa-calendar-alt opacity-60"></i> Connected: {{ caregiver_assign.created_at|date:"M j, Y" }}</span>
+          <span class="flex items-center gap-1 text-emerald-600 font-medium"><i class="fas fa-circle text-[8px]"></i> Active</span>
+        </div>
+      </div>
+
+      <!-- Actions -->
+      <div class="flex items-center gap-3">
+        <a href="/messages/?with={{ caregiver_assign.caregiver.id }}"
+           class="px-4 py-2 bg-white border border-slate-200 text-slate-700 text-xs font-bold rounded-xl hover:bg-slate-50 transition shadow-sm flex items-center gap-2">
+          <i class="fas fa-comment-alt text-blue-500"></i> Message
+        </a>
+        <a href="/dashboard/caregiver/profile/{{ caregiver_assign.caregiver.id }}/"
+           class="px-4 py-2 bg-purple-600 text-white text-xs font-bold rounded-xl hover:bg-purple-700 transition shadow-sm flex items-center gap-2">
+          <i class="fas fa-user text-white"></i> View Profile
+        </a>
+      </div>
+    </div>
+    {% endwith %}
+  {% else %}
+    <div class="text-center py-10 bg-slate-50 rounded-2xl border border-dashed border-slate-200">
+      <div class="w-16 h-16 bg-slate-100 rounded-full flex items-center justify-center mx-auto mb-3">
+        <i class="fas fa-user-nurse text-2xl text-slate-300"></i>
+      </div>
+      <p class="text-sm text-slate-500 font-medium">No caregiver connected yet.</p>
+      <p class="text-xs text-slate-400 mt-1">Caregivers can send you a connection request for your approval.</p>
+    </div>
+  {% endif %}
+</div>
+
+<div class="bg-white rounded-2xl shadow-sm border border-slate-100 p-5">
+  <h3 class="font-bold text-slate-800 mb-4 flex items-center gap-2"><i class="fas fa-bolt text-amber-500"></i> Quick Actions</h3>
+  <div class="grid grid-cols-2 sm:grid-cols-4 gap-3">
+    <a href="/appointments/book/" class="flex flex-col items-center gap-2 p-4 bg-violet-50 hover:bg-violet-100 border border-violet-200 rounded-2xl transition">
+      <i class="fas fa-calendar-plus text-violet-600 text-xl"></i>
+      <span class="text-xs font-semibold text-violet-700 text-center">Book Appointment</span>
+    </a>
+    <a href="/medicines/" class="flex flex-col items-center gap-2 p-4 bg-emerald-50 hover:bg-emerald-100 border border-emerald-200 rounded-2xl transition">
+      <i class="fas fa-pills text-emerald-600 text-xl"></i>
+      <span class="text-xs font-semibold text-emerald-700 text-center">My Medicines</span>
+    </a>
+    <a href="/medicines/analytics/" class="flex flex-col items-center gap-2 p-4 bg-blue-50 hover:bg-blue-100 border border-blue-200 rounded-2xl transition">
+      <i class="fas fa-chart-line text-blue-600 text-xl"></i>
+      <span class="text-xs font-semibold text-blue-700 text-center">Health Analytics</span>
+    </a>
+    <button onclick="document.getElementById('emergencyQuickBtn').click()"
+      class="flex flex-col items-center gap-2 p-4 bg-red-50 hover:bg-red-100 border border-red-200 rounded-2xl transition">
+      <i class="fas fa-bolt text-red-600 text-xl"></i>
+      <span class="text-xs font-semibold text-red-700 text-center">Emergency Video</span>
+    </button>
+  </div>
+</div>
+
+<!-- Hidden emergency trigger -->
+<a id="emergencyQuickBtn" href="/appointments/?emergency=1" style="display:none"></a>
+
+<script>
+const csrfToken = document.querySelector('[name=csrfmiddlewaretoken]').value;
+
+// Medicine reminders: see static/js/medicine_reminders.js (server-driven, time-based popups)
+
+function markMedicine(medId, action, btnElement = null) {
+  const btn = btnElement || document.getElementById(`mark-btn-${medId}`);
+  const originalHtml = btn ? btn.innerHTML : '';
+
+  const submitMark = () => fetch(`/medicines/mark/${medId}/`, {
+    method: 'POST',
+    headers: {'Content-Type': 'application/x-www-form-urlencoded', 'X-CSRFToken': csrfToken},
+    body: `action=${action}`
+  }).then(r => r.json()).then(data => {
+    if (data.success) {
+      const taken = data.taken_today;
+      const max = data.max_doses;
+      if (taken >= max) {
+        const doneHtml = `<span class="px-3 py-1.5 bg-emerald-50 border border-emerald-200 text-emerald-700 text-xs font-semibold rounded-lg flex items-center gap-1"><i class="fas fa-check-double"></i> Done</span>`;
+        if (btn) btn.outerHTML = doneHtml;
+      } else {
+        const nextLabel = data.next_dose ? ` · Next: ${data.next_dose}` : '';
+        const takenHtml = `<span class="px-3 py-1.5 bg-emerald-50 border border-emerald-200 text-emerald-700 text-xs font-semibold rounded-lg flex items-center gap-1" title="Dose taken${nextLabel}"><i class="fas fa-check"></i> Taken ✓</span>`;
+        if (btn) btn.outerHTML = takenHtml;
+      }
+      showToast(`✅ Medicine marked as taken! Stock: ${data.stock}`, 'success');
+      if (window.syncMedicineReminders) window.syncMedicineReminders();
+    } else if (data.error === 'overdose') {
+      showToast('⚠️ ' + data.message, 'error');
+      if (btn) { btn.disabled = false; btn.innerHTML = originalHtml; }
+    } else {
+      showToast('❌ ' + (data.message || 'Error marking medicine'), 'error');
+      if (btn) { btn.disabled = false; btn.innerHTML = originalHtml; }
+    }
+  }).catch(() => {
+    if (btn) { btn.disabled = false; btn.innerHTML = originalHtml; }
+  });
+
+  if (!btn) {
+    submitMark();
+    return;
+  }
+
+  btn.disabled = true;
+  btn.innerHTML = '<i class="fas fa-spinner fa-spin mr-1"></i>';
+  submitMark();
+}
+
+window.markMedicine = markMedicine;
+
+function showToast(msg, type) {
+  if (window.SmartTrackUI && typeof window.showToast === 'function') {
+    var t = type === 'success' ? 'success' : (type === 'error' ? 'error' : 'warning');
+    window.showToast(t, null, msg);
+    return;
+  }
+  var toast = document.createElement('div');
+  toast.className = 'fixed top-5 right-5 z-[10000] px-6 py-3 pr-12 rounded-2xl text-white text-sm font-semibold shadow-2xl animate-slide-in ' +
+    (type === 'success' ? 'bg-emerald-600' : 'bg-red-600');
+  toast.innerHTML =
+    '<span>' + msg + '</span>' +
+    '<button type="button" aria-label="Dismiss" class="absolute top-2 right-2 w-7 h-7 rounded-lg bg-white/20 hover:bg-white/30 flex items-center justify-center">' +
+    '<i class="fas fa-times text-xs"></i></button>';
+  toast.querySelector('button').onclick = function () { toast.remove(); };
+  document.body.appendChild(toast);
+  setTimeout(function () { if (toast.parentNode) toast.remove(); }, 5000);
+}
+
+// --- Daily health check ---
+async function checkDailyHealth() {
+  try {
+    const resp = await fetch('/medicines/health-check/');
+    const data = await resp.json();
+    if (!data.checked) showHealthPopup();
+  } catch(e) {}
+}
+
+function showHealthPopup() {
+  const popup = document.createElement('div');
+  popup.id = 'healthPopup';
+  popup.className = 'fixed bottom-6 right-6 z-[9999] bg-white border border-slate-200 shadow-2xl rounded-2xl p-5 w-76 animate-slide-in';
+  popup.style.width = '300px';
+  popup.innerHTML = `
+    <div class="flex items-center gap-3 mb-3">
+      <div class="w-10 h-10 bg-blue-100 rounded-xl flex items-center justify-center"><i class="fas fa-heart text-blue-600"></i></div>
+      <div><div class="font-bold text-slate-800 text-sm">Daily Health Check</div><div class="text-xs text-slate-500">How are you feeling today?</div></div>
+    </div>
+    <div id="healthChoices" class="grid grid-cols-3 gap-2 mb-3">
+      <button onclick="submitHealth('good')" class="py-2 bg-emerald-50 border border-emerald-200 text-emerald-700 rounded-xl text-xs font-semibold hover:bg-emerald-100 transition">😊 Good</button>
+      <button onclick="submitHealth('okay')" class="py-2 bg-amber-50 border border-amber-200 text-amber-700 rounded-xl text-xs font-semibold hover:bg-amber-100 transition">😐 Okay</button>
+      <button onclick="submitHealth('not_good')" class="py-2 bg-red-50 border border-red-200 text-red-700 rounded-xl text-xs font-semibold hover:bg-red-100 transition">😟 Not Good</button>
+      <button onclick="showCustomHealthInput()" class="col-span-3 py-2 bg-slate-50 border border-slate-200 text-slate-600 rounded-xl text-xs font-semibold hover:bg-slate-100 transition">✍️ Custom Answer</button>
+    </div>
+    <div id="healthCustomInput" class="hidden mb-3">
+      <textarea id="customFeelingText" class="w-full p-2 text-xs border border-slate-200 rounded-xl focus:ring-2 focus:ring-blue-500 outline-none" rows="3" placeholder="Describe how you feel..."></textarea>
+      <div class="flex gap-2 mt-2">
+        <button onclick="submitHealth('custom')" class="flex-1 py-2 bg-blue-600 text-white rounded-xl text-xs font-semibold hover:bg-blue-700 transition">Submit</button>
+        <button onclick="hideCustomHealthInput()" class="px-3 py-2 bg-slate-100 text-slate-500 rounded-xl text-xs font-semibold hover:bg-slate-200 transition">Cancel</button>
+      </div>
+    </div>
+    <button onclick="document.getElementById('healthPopup').remove()" class="w-full text-xs text-slate-400 hover:text-slate-600 text-center">Remind later</button>`;
+  document.body.appendChild(popup);
+}
+
+function showCustomHealthInput() {
+  document.getElementById('healthChoices').classList.add('hidden');
+  document.getElementById('healthCustomInput').classList.remove('hidden');
+}
+
+function hideCustomHealthInput() {
+  document.getElementById('healthChoices').classList.remove('hidden');
+  document.getElementById('healthCustomInput').classList.add('hidden');
+}
+
+async function submitHealth(feeling) {
+  let notes = '';
+  if (feeling === 'custom') {
+    notes = document.getElementById('customFeelingText').value;
+    if (!notes) {
+      showToast('Please enter your feeling', 'error');
+      return;
+    }
+  }
+  await fetch('/medicines/health-check/', {
+    method: 'POST',
+    headers: {'Content-Type': 'application/x-www-form-urlencoded', 'X-CSRFToken': csrfToken},
+    body: `feeling=${feeling}&notes=${encodeURIComponent(notes)}`
+  });
+  const popup = document.getElementById('healthPopup');
+  if (popup) popup.remove();
+  const emoji = feeling === 'good' ? '😊' : feeling === 'okay' ? '😐' : feeling === 'not_good' ? '😟' : '✍️';
+  showToast(`${emoji} Health check saved!`, 'success');
+}
+
+function findNearbyPharmacies(e) {
+  if (e) e.preventDefault();
+  if (typeof window.openNearbyPharmacies === 'function') window.openNearbyPharmacies(e);
+}
+
+function closePharmacyExperience() {
+  window.SmartTrackNearbyPlaces?.close();
+}
+
+document.addEventListener('DOMContentLoaded', () => {
+  document.querySelectorAll('.find-pharmacy-trigger').forEach(el => {
+    el.onclick = findNearbyPharmacies;
+  });
+  checkDailyHealth();
+});
+
+function respondCaregiverRequest(id, action, reason) {
+  const csrf = document.querySelector('[name=csrfmiddlewaretoken]')?.value;
+  const body = new URLSearchParams({action});
+  if (reason) body.append('rejection_reason', reason);
+  fetch(`/dashboard/patient/accept-caregiver/${id}/`, {
+    method: 'POST',
+    headers: {'Content-Type': 'application/x-www-form-urlencoded', 'X-CSRFToken': csrf, 'X-Requested-With': 'XMLHttpRequest'},
+    body: body.toString()
+  }).then(() => {
+    if (action === 'accept') {
+      showToast('success', 'Connection Successful', 'Your caregiver connection has been approved and activated.');
+    } else {
+      showToast('info', 'Request Declined', 'The caregiver connection request was declined.');
+    }
+    setTimeout(function () { location.reload(); }, 1200);
+  });
+}
+
+let rejectCaregiverId = null;
+function openRejectCaregiverModal(id) {
+  rejectCaregiverId = id;
+  document.getElementById('rejectCaregiverModal')?.classList.remove('hidden');
+  document.getElementById('rejectCaregiverModal')?.classList.add('flex');
+}
+function closeRejectCaregiverModal() {
+  document.getElementById('rejectCaregiverModal')?.classList.add('hidden');
+  document.getElementById('rejectCaregiverModal')?.classList.remove('flex');
+  rejectCaregiverId = null;
+}
+function submitRejectCaregiver() {
+  const reason = document.getElementById('rejectCaregiverReason')?.value || '';
+  if (rejectCaregiverId) respondCaregiverRequest(rejectCaregiverId, 'reject', reason);
+}
+</script>
+
+<!-- Reject Caregiver Modal -->
+<div id="rejectCaregiverModal" class="fixed inset-0 z-[200] hidden items-center justify-center p-4">
+  <div class="absolute inset-0 bg-slate-900/50" onclick="closeRejectCaregiverModal()"></div>
+  <div class="relative bg-white rounded-2xl shadow-2xl max-w-md w-full p-6">
+    <h3 class="text-lg font-bold text-slate-800 mb-2">Reject Connection Request</h3>
+    <p class="text-sm text-slate-500 mb-4">Optionally provide a reason for rejecting.</p>
+    <textarea id="rejectCaregiverReason" rows="3" placeholder="Reason (optional)"
+      class="w-full p-3 border border-slate-200 rounded-xl text-sm mb-4 outline-none resize-none"></textarea>
+    <div class="flex gap-3">
+      <button type="button" onclick="closeRejectCaregiverModal()" class="flex-1 py-2.5 border border-slate-200 text-slate-700 text-sm font-semibold rounded-xl">Cancel</button>
+      <button type="button" onclick="submitRejectCaregiver()" class="flex-1 py-2.5 bg-red-600 text-white text-sm font-semibold rounded-xl hover:bg-red-700">Reject</button>
+    </div>
+  </div>
+</div>
+{% endblock %}

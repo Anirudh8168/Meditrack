@@ -1,0 +1,50 @@
+{% load static %}
+<!-- Global emergency waiting UI (patient) — fixed, non-dismissible by outside click -->
+<div id="emergencyWaitingModal"
+  class="fixed inset-0 bg-black/60 z-[200] hidden flex items-center justify-center p-4"
+  data-emergency-wait-modal
+  data-backdrop="static"
+  role="dialog"
+  aria-modal="true"
+  aria-labelledby="emergencyWaitTitle">
+  <div class="bg-white rounded-2xl shadow-2xl w-full max-w-md p-6 text-center relative" data-emergency-wait-panel>
+    <button type="button" id="emergencyCloseWaitBtn"
+      class="absolute top-3 right-3 w-8 h-8 rounded-lg text-slate-400 hover:text-slate-600 hover:bg-slate-100 flex items-center justify-center"
+      title="Hide waiting screen (request stays active)"
+      aria-label="Close waiting screen">
+      <i class="fas fa-times"></i>
+    </button>
+    <div class="w-14 h-14 bg-red-100 rounded-full flex items-center justify-center mx-auto mb-4 animate-pulse">
+      <i class="fas fa-user-md text-red-600 text-2xl"></i>
+    </div>
+    <h3 id="emergencyWaitTitle" class="font-bold text-slate-800 text-lg mb-1">Waiting for doctor response…</h3>
+    <p id="emergencyWaitStatus" class="text-sm text-slate-500 mb-1">Doctor is being contacted.</p>
+    <p id="emergencyWaitDoctor" class="text-xs text-slate-400 mb-4"></p>
+    <div class="text-4xl font-black text-red-600 tabular-nums mb-2" id="emergencyCountdown">05:00</div>
+    <p class="text-xs text-slate-400">Emergency request active · Doctor dashboard alerted</p>
+    <p class="text-[10px] text-slate-400 mt-2">This screen stays open until the doctor responds or the timer ends.</p>
+  </div>
+</div>
+
+<div id="doctorUnavailableModal" class="fixed inset-0 bg-black/60 z-[210] hidden flex items-center justify-center p-4" data-allow-backdrop-close>
+  <div class="bg-white rounded-2xl shadow-2xl w-full max-w-md p-6">
+    <div class="text-center mb-4">
+      <span class="text-3xl">🚨</span>
+      <h3 class="font-bold text-red-700 text-lg mt-2">Doctor Not Available</h3>
+      <p id="doctorUnavailableReason" class="text-sm text-slate-600 mt-2">
+        Doctor is currently unavailable. Please visit a nearby clinic or hospital immediately.
+      </p>
+    </div>
+    <div class="flex flex-col gap-2">
+      <button type="button" onclick="if(typeof openClinicFinder==='function'){openClinicFinder();}else{window.location.href='/appointments/';}" class="w-full px-4 py-3 bg-red-600 text-white rounded-xl font-semibold text-sm hover:bg-red-700">
+        <i class="fas fa-hospital-alt mr-2"></i>Find Nearby Clinics
+      </button>
+      <button type="button" onclick="retryEmergencyCall()" class="w-full px-4 py-3 bg-amber-500 text-white rounded-xl font-semibold text-sm hover:bg-amber-600">
+        <i class="fas fa-redo mr-2"></i>Retry Emergency Call
+      </button>
+      <button type="button" onclick="document.getElementById('doctorUnavailableModal').classList.add('hidden')" class="w-full px-4 py-3 bg-slate-100 text-slate-700 rounded-xl font-semibold text-sm">Close</button>
+    </div>
+  </div>
+</div>
+
+<script src="{% static 'js/emergency_flow.js' %}?v=6"></script>

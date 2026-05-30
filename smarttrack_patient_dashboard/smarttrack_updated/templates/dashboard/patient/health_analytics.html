@@ -1,0 +1,264 @@
+{% extends 'base_dashboard.html' %}
+{% block title %}Health Analytics{% endblock %}
+{% block page_title %}Health Analytics{% endblock %}
+{% block page_subtitle %}Track your medication adherence and health trends{% endblock %}
+
+{% block content %}
+{% load static %}
+
+{% include 'dashboard/includes/dynamic_risk_cards.html' with risk=risk %}
+
+<!-- Risk Score Card -->
+<div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
+  <div class="bg-gradient-to-br
+    {% if risk.level == 'critical' %}from-red-700 to-rose-800
+    {% elif risk.level == 'high' %}from-red-500 to-red-600
+    {% elif risk.level == 'medium' %}from-amber-500 to-orange-600
+    {% else %}from-emerald-500 to-teal-600{% endif %}
+    rounded-2xl p-5 text-white shadow-lg">
+    <div class="flex items-start justify-between mb-4">
+      <div class="w-12 h-12 bg-white/20 rounded-xl flex items-center justify-center">
+        <i class="fas fa-shield-alt text-white text-xl"></i>
+      </div>
+      <span class="text-sm bg-white/20 px-3 py-1 rounded-full font-semibold capitalize">{{ risk.level|default:"Low" }} Risk</span>
+    </div>
+    <div class="text-4xl font-black mb-1">{{ risk.score|default:0 }}<span class="text-xl">/100</span></div>
+    <div class="text-white/80 text-sm">Current Risk Score</div>
+    <div class="mt-3 w-full bg-white/20 rounded-full h-2">
+      <div class="h-2 bg-white rounded-full transition-all" style="width: {{ risk.score|default:0 }}%"></div>
+    </div>
+  </div>
+
+  {% if risk %}
+  <div class="md:col-span-2 bg-white rounded-2xl shadow-sm border border-slate-100 p-5">
+    <h3 class="font-bold text-slate-800 mb-1">Patient Risk Summary</h3>
+    <p class="text-sm text-slate-500 mb-3">{{ risk.patient_message|default:risk.level_message|default:"" }}</p>
+    {% if risk.prediction_summary %}
+    <div class="p-3 rounded-xl bg-red-50 border border-red-100 mb-3">
+      <div class="text-xs font-bold text-red-700 uppercase mb-1">What May Happen</div>
+      <p class="text-sm text-red-800">{{ risk.prediction_summary }}</p>
+    </div>
+    {% endif %}
+    {% if risk.medicine_insights %}
+    <h4 class="text-xs font-bold text-slate-600 uppercase mb-2">Medicine Analysis</h4>
+    <div class="space-y-2 mb-3">
+      {% for insight in risk.medicine_insights %}
+      <div class="p-2.5 rounded-xl bg-slate-50 border border-slate-100 text-sm">
+        <div class="font-semibold text-slate-800">{{ insight.medicine }}</div>
+        <div class="text-xs text-slate-500">{{ insight.category_label }} · {{ insight.consecutive_misses }} consecutive miss{{ insight.consecutive_misses|pluralize:"es" }}</div>
+        <div class="text-xs text-red-700 mt-1">{{ insight.predicted_risk }}</div>
+      </div>
+      {% endfor %}
+    </div>
+    {% endif %}
+    {% if risk.risk_type_labels %}
+    <div class="flex flex-wrap gap-1.5 mb-3">
+      {% for label in risk.risk_type_labels %}
+      <span class="text-[10px] px-2 py-0.5 rounded-full bg-red-50 text-red-700 font-semibold">{{ label }}</span>
+      {% endfor %}
+    </div>
+    {% endif %}
+    {% if risk.reasons %}
+    <h4 class="text-xs font-bold text-slate-600 uppercase mb-2">Reasons</h4>
+    <div class="space-y-1.5 mb-3">
+      {% for reason in risk.reasons %}
+      <div class="flex items-start gap-2 p-2 bg-amber-50 rounded-xl text-sm">
+        <i class="fas fa-dot-circle text-amber-500 text-xs mt-1 flex-shrink-0"></i>
+        <span class="text-slate-700">{{ reason }}</span>
+      </div>
+      {% endfor %}
+    </div>
+    {% endif %}
+    {% if risk.health_impacts %}
+    <h4 class="text-xs font-bold text-slate-600 uppercase mb-2">Possible Health Impact</h4>
+    <div class="space-y-1.5 mb-3">
+      {% for impact in risk.health_impacts %}
+      <div class="flex items-start gap-2 p-2 bg-red-50 rounded-xl text-sm text-red-800">{{ impact }}</div>
+      {% endfor %}
+    </div>
+    {% endif %}
+    {% if risk.recommended_actions %}
+    <h4 class="text-xs font-bold text-slate-600 uppercase mb-2">Recommended Action</h4>
+    <ul class="text-sm text-blue-800 space-y-1 list-disc list-inside">
+      {% for action in risk.recommended_actions %}
+      <li>{{ action }}</li>
+      {% endfor %}
+    </ul>
+    {% elif risk.factors %}
+    <h3 class="font-bold text-slate-800 mb-3 flex items-center gap-2">
+      <i class="fas fa-exclamation-circle text-amber-500"></i> Risk Factors
+    </h3>
+    <div class="space-y-2">
+      {% for key, val in risk.factors.items %}
+      <div class="flex items-center gap-3 p-2 bg-amber-50 rounded-xl text-sm">
+        <i class="fas fa-dot-circle text-amber-500 text-xs flex-shrink-0"></i>
+        <span class="text-slate-700">{{ val }}</span>
+      </div>
+      {% endfor %}
+    </div>
+    {% endif %}
+  </div>
+  {% endif %}
+</div>
+
+<!-- Charts Row -->
+<div class="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
+  <!-- Weekly Adherence -->
+  <div class="bg-white rounded-2xl shadow-sm border border-slate-100 p-5">
+    <h3 class="font-bold text-slate-800 mb-4 flex items-center gap-2">
+      <i class="fas fa-chart-bar text-blue-500"></i> Weekly Adherence
+    </h3>
+    <canvas id="weeklyChart" height="200"></canvas>
+  </div>
+
+  <!-- Monthly Trend -->
+  <div class="bg-white rounded-2xl shadow-sm border border-slate-100 p-5">
+    <h3 class="font-bold text-slate-800 mb-4 flex items-center gap-2">
+      <i class="fas fa-chart-line text-violet-500"></i> 30-Day Trend
+    </h3>
+    <canvas id="monthlyChart" height="200"></canvas>
+  </div>
+</div>
+
+<!-- Risk Trend -->
+<div class="bg-white rounded-2xl shadow-sm border border-slate-100 p-5 mb-6">
+  <h3 class="font-bold text-slate-800 mb-4 flex items-center gap-2">
+    <i class="fas fa-chart-line text-red-500"></i> 7-Day Risk Trend
+  </h3>
+  <canvas id="riskTrendChart" height="120"></canvas>
+</div>
+
+<!-- Medicine-wise Stats -->
+<div class="bg-white rounded-2xl shadow-sm border border-slate-100 p-5 mb-6">
+  <h3 class="font-bold text-slate-800 mb-4 flex items-center gap-2">
+    <i class="fas fa-pills text-emerald-500"></i> Medicine Adherence Breakdown
+  </h3>
+  <canvas id="medChart" height="120"></canvas>
+</div>
+
+<!-- Health Check History -->
+{% if health_checks %}
+<div class="bg-white rounded-2xl shadow-sm border border-slate-100 p-5">
+  <h3 class="font-bold text-slate-800 mb-4 flex items-center gap-2">
+    <i class="fas fa-heartbeat text-rose-500"></i> Daily Health Check History
+  </h3>
+  <div class="space-y-2 max-h-80 overflow-y-auto">
+    {% for check in health_checks %}
+    <div class="flex items-center gap-3 p-3 rounded-xl border border-slate-100 hover:bg-slate-50">
+      <div class="w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0
+        {% if check.feeling == 'good' %}bg-emerald-100 text-emerald-700
+        {% elif check.feeling == 'okay' %}bg-amber-100 text-amber-700
+        {% else %}bg-red-100 text-red-700{% endif %}">
+        {% if check.feeling == 'good' %}😊{% elif check.feeling == 'okay' %}😐{% else %}😟{% endif %}
+      </div>
+      <div class="flex-1">
+        <span class="font-semibold text-slate-700 text-sm capitalize">{{ check.feeling|title }}</span>
+        {% if check.notes %}<span class="text-xs text-slate-400 ml-2">- {{ check.notes }}</span>{% endif %}
+      </div>
+      <span class="text-xs text-slate-400">{{ check.checked_at|date:"M j" }}</span>
+    </div>
+    {% endfor %}
+  </div>
+</div>
+{% endif %}
+
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script>
+const weeklyData = {{ weekly_data|safe }};
+const monthlyData = {{ monthly_data|safe }};
+const medStats = {{ med_stats|safe }};
+
+// Weekly bar chart
+new Chart(document.getElementById('weeklyChart'), {
+  type: 'bar',
+  data: {
+    labels: weeklyData.map(d => d.date),
+    datasets: [{
+      label: 'Taken',
+      data: weeklyData.map(d => d.taken),
+      backgroundColor: '#10b981',
+      borderRadius: 6,
+    },{
+      label: 'Missed',
+      data: weeklyData.map(d => d.missed),
+      backgroundColor: '#ef4444',
+      borderRadius: 6,
+    }]
+  },
+  options: {
+    responsive: true,
+    plugins: { legend: { position: 'top' } },
+    scales: { x: { stacked: true }, y: { stacked: true, beginAtZero: true } }
+  }
+});
+
+// Monthly line chart
+new Chart(document.getElementById('monthlyChart'), {
+  type: 'line',
+  data: {
+    labels: monthlyData.map(d => d.date),
+    datasets: [{
+      label: 'Adherence %',
+      data: monthlyData.map(d => d.pct),
+      borderColor: '#7c3aed',
+      backgroundColor: 'rgba(124,58,237,0.1)',
+      fill: true,
+      tension: 0.4,
+      pointRadius: 3,
+    }]
+  },
+  options: {
+    responsive: true,
+    plugins: { legend: { display: false } },
+    scales: { y: { min: 0, max: 100, ticks: { callback: v => v+'%' } } }
+  }
+});
+
+const riskTrend = {{ risk_trend|safe }};
+
+if (riskTrend.length > 0) {
+  new Chart(document.getElementById('riskTrendChart'), {
+    type: 'line',
+    data: {
+      labels: riskTrend.map(d => d.date),
+      datasets: [{
+        label: 'Risk Score',
+        data: riskTrend.map(d => d.score),
+        borderColor: '#ef4444',
+        backgroundColor: 'rgba(239,68,68,0.1)',
+        fill: true,
+        tension: 0.3,
+      }]
+    },
+    options: {
+      responsive: true,
+      scales: { y: { min: 0, max: 100 } }
+    }
+  });
+}
+
+// Medicine breakdown horizontal bars
+if (medStats.length > 0) {
+  new Chart(document.getElementById('medChart'), {
+    type: 'bar',
+    data: {
+      labels: medStats.map(m => m.name),
+      datasets: [{
+        label: 'Adherence %',
+        data: medStats.map(m => m.adherence),
+        backgroundColor: medStats.map(m =>
+          m.adherence >= 80 ? '#10b981' : m.adherence >= 50 ? '#f59e0b' : '#ef4444'
+        ),
+        borderRadius: 6,
+      }]
+    },
+    options: {
+      indexAxis: 'y',
+      responsive: true,
+      plugins: { legend: { display: false } },
+      scales: { x: { min: 0, max: 100, ticks: { callback: v => v+'%' } } }
+    }
+  });
+}
+</script>
+{% endblock %}

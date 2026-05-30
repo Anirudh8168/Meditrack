@@ -1,0 +1,12 @@
+{% extends 'system_admin/base.html' %}
+{% block content %}
+<div class="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
+  <div class="bg-white rounded-2xl border p-4"><div class="text-xs text-slate-500">Total Users</div><div class="text-2xl font-bold">{{ total_users }}</div></div>
+  <div class="bg-white rounded-2xl border p-4"><div class="text-xs text-slate-500">Appointments</div><div class="text-2xl font-bold">{{ total_appointments }}</div></div>
+  <div class="bg-white rounded-2xl border p-4"><div class="text-xs text-slate-500">Medicines</div><div class="text-2xl font-bold">{{ total_medicines }}</div></div>
+  <div class="bg-white rounded-2xl border p-4"><div class="text-xs text-slate-500">Caregiver Links</div><div class="text-2xl font-bold">{{ caregiver_links }}</div></div>
+</div>
+<div class="bg-white rounded-2xl border p-5"><h3 class="font-bold mb-4">Data Integrity Issues</h3>
+{% if issues %}{% for i in issues %}<div class="flex justify-between py-2 border-b text-sm"><span class="{% if i.type == 'error' %}text-red-600{% else %}text-amber-600{% endif %}">{{ i.label }}</span><span class="font-bold">{{ i.count }}</span></div>{% endfor %}{% else %}<p class="text-sm text-emerald-600">No integrity issues detected.</p>{% endif %}
+</div>
+{% endblock %}

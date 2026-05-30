@@ -1,0 +1,28 @@
+{
+  "permissions": {
+    "allow": [
+      "PowerShell(python manage.py showmigrations)",
+      "PowerShell(python manage.py makemigrations)",
+      "PowerShell(python -c \"import sqlite3; conn = sqlite3.connect\\('db.sqlite3'\\); cursor = conn.cursor\\(\\); cursor.execute\\('SELECT name FROM sqlite_master WHERE type=\\\\'table\\\\';'\\); print\\('\\\\n'.join\\([row[0] for row in cursor.fetchall\\(\\)]\\)\\); conn.close\\(\\)\")",
+      "PowerShell(python -c \"import sqlite3; conn = sqlite3.connect\\('db.sqlite3'\\); cursor = conn.cursor\\(\\); cursor.execute\\('SELECT app, name FROM django_migrations WHERE app=\\\\'medicines\\\\';'\\); print\\('\\\\n'.join\\([f'{row[0]}, {row[1]}' for row in cursor.fetchall\\(\\)]\\)\\); conn.close\\(\\)\")",
+      "PowerShell(python -c \"import sqlite3; conn = sqlite3.connect\\('db.sqlite3'\\); cursor = conn.cursor\\(\\); cursor.execute\\('PRAGMA table_info\\(medicines_medicine\\)'\\); columns = [row[1] for row in cursor.fetchall\\(\\)]; print\\('critical_stock_threshold' in columns\\)\")",
+      "PowerShell(python -c \"import sqlite3; conn = sqlite3.connect\\('db.sqlite3'\\); cursor = conn.cursor\\(\\); cursor.execute\\(\\\\\"DELETE FROM django_migrations WHERE app='medicines' AND name IN \\('0002_new_models', '0003_alter_medicinelog_marked_by_alter_riskscore_level'\\)\\\\\"\\); conn.commit\\(\\); conn.close\\(\\)\")",
+      "PowerShell(python -c \"import sqlite3; conn = sqlite3.connect\\('db.sqlite3'\\); cursor = conn.cursor\\(\\); cursor.execute\\('DELETE FROM django_migrations WHERE app=\\\\\"medicines\\\\\" AND name IN \\(\\\\\"0002_new_models\\\\\", \\\\\"0003_alter_medicinelog_marked_by_alter_riskscore_level\\\\\"\\)'\\); conn.commit\\(\\); conn.close\\(\\)\")",
+      "PowerShell(python fix_migrations.py)",
+      "PowerShell(python manage.py migrate)",
+      "PowerShell(python -c \"import sqlite3; conn = sqlite3.connect\\('db.sqlite3'\\); cursor = conn.cursor\\(\\); cursor.execute\\('PRAGMA table_info\\(medicines_medicinelog\\)'\\); print\\([row[1] for row in cursor.fetchall\\(\\)]\\)\")",
+      "PowerShell(python -c \"import sqlite3; conn = sqlite3.connect\\('db.sqlite3'\\); cursor = conn.cursor\\(\\); cursor.execute\\('PRAGMA table_info\\(medicines_medicine\\)'\\); print\\([row[1] for row in cursor.fetchall\\(\\)]\\)\")",
+      "PowerShell(python -c \"import sqlite3; conn = sqlite3.connect\\('db.sqlite3'\\); cursor = conn.cursor\\(\\); cursor.execute\\('SELECT name FROM sqlite_master WHERE type=\\\\'table\\\\' AND name LIKE \\\\'medicines_%\\\\';'\\); print\\([row[0] for row in cursor.fetchall\\(\\)]\\)\")",
+      "PowerShell(python fix_schema.py)",
+      "PowerShell(python manage.py migrate medicines 0002 --fake; python manage.py migrate)",
+      "PowerShell(python fix_low_stock.py)",
+      "PowerShell(python manage.py makemigrations notifications)",
+      "PowerShell(python manage.py makemigrations profiles)",
+      "PowerShell(python manage.py makemigrations caregiver; python manage.py migrate)",
+      "PowerShell(python manage.py makemigrations accounts messaging; python manage.py migrate)",
+      "PowerShell(python manage.py makemigrations family; python manage.py migrate)",
+      "PowerShell(python manage.py makemigrations accounts family; python manage.py migrate)",
+      "PowerShell(New-Item *)"
+    ]
+  }
+}

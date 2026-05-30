@@ -1,0 +1,492 @@
+{% extends 'base_dashboard.html' %}
+{% block title %}{% if editing %}Edit Caregiver{% elif replace_mode %}Replace Caregiver{% else %}Assign Caregiver{% endif %}{% endblock %}
+{% block page_title %}{% if editing %}Edit Caregiver{% elif replace_mode %}Replace Caregiver{% else %}Assign Caregiver{% endif %}{% endblock %}
+{% block page_subtitle %}{% if replace_mode %}Assign a new hospital caregiver for this patient{% elif editing %}Update caregiver details{% else %}Select a patient to begin hospital caregiver assignment{% endif %}{% endblock %}
+
+{% block content %}
+<div class="max-w-4xl mx-auto">
+  <a href="{% url 'doctor_assign_caregiver' %}" class="inline-flex items-center gap-2 text-sm text-slate-500 hover:text-slate-800 mb-6">
+    <i class="fas fa-arrow-left"></i> Back to List
+  </a>
+
+  {% if not editing %}
+  <div class="bg-white rounded-2xl shadow-sm border border-slate-100 p-5 mb-6">
+    <label class="block text-sm font-semibold text-slate-700 mb-2">Select Patient</label>
+    <select id="patientSelect"
+            onchange="onPatientChange(this.value)"
+            class="w-full p-3 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:ring-2 focus:ring-teal-500 outline-none">
+      <option value="">Choose patient...</option>
+      {% for p in patients %}
+      <option value="{{ p.id }}" {% if selected_patient and selected_patient.id == p.id %}selected{% endif %}>
+        {{ p.get_full_name }} · {{ p.unique_id }}
+      </option>
+      {% endfor %}
+    </select>
+  </div>
+  {% endif %}
+
+  {% if existing_active_caregiver and not replace_mode and not editing %}
+  {% if caregiver_conflict_type == 'hospital_manageable' %}
+  <!-- Hospital CG — doctor can manage -->
+  <div class="bg-teal-50 border border-teal-200 rounded-2xl p-6 mb-6">
+    <div class="flex items-start gap-3 mb-4">
+      <div class="w-10 h-10 bg-teal-100 rounded-xl flex items-center justify-center flex-shrink-0">
+        <i class="fas fa-hospital-user text-teal-600"></i>
+      </div>
+      <div>
+        <h3 class="font-bold text-teal-900 text-lg">Hospital Caregiver Already Assigned</h3>
+        <p class="text-sm text-teal-800/80 mt-1">
+          This patient already has an active hospital caregiver. You may manage or replace the caregiver if needed.
+        </p>
+      </div>
+    </div>
+
+    <div class="bg-white rounded-xl border border-teal-100 p-5 mb-4">
+      <div class="grid grid-cols-1 sm:grid-cols-2 gap-x-6 gap-y-3 text-sm">
+        <div>
+          <span class="text-slate-500 text-xs uppercase tracking-wide">Caregiver</span>
+          <div class="font-semibold text-slate-800 mt-0.5">{{ existing_active_caregiver.caregiver_name }}</div>
+        </div>
+        <div>
+          <span class="text-slate-500 text-xs uppercase tracking-wide">Role</span>
+          <div class="font-semibold text-slate-800 mt-0.5">{{ existing_active_caregiver.role_display }}</div>
+        </div>
+        <div>
+          <span class="text-slate-500 text-xs uppercase tracking-wide">Department</span>
+          <div class="font-medium text-slate-800 mt-0.5">{{ existing_active_caregiver.department_display }}</div>
+        </div>
+        <div>
+          <span class="text-slate-500 text-xs uppercase tracking-wide">Assigned By</span>
+          <div class="font-medium text-slate-800 mt-0.5">{{ existing_active_caregiver.assigned_by_display }}</div>
+        </div>
+        <div>
+          <span class="text-slate-500 text-xs uppercase tracking-wide">Assigned On</span>
+          <div class="font-medium text-slate-800 mt-0.5">{{ existing_active_caregiver.assigned_on|date:"M j, Y" }}</div>
+        </div>
+        <div>
+          <span class="text-slate-500 text-xs uppercase tracking-wide">Status</span>
+          <div class="mt-0.5"><span class="text-xs px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-700 font-semibold">Active</span></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="flex flex-wrap gap-2">
+      <button type="button" onclick="openReplaceConfirmModal()"
+              class="px-4 py-2 bg-violet-600 text-white rounded-xl text-sm font-semibold hover:bg-violet-700 transition">
+        <i class="fas fa-exchange-alt mr-1"></i> Replace
+      </button>
+      <button type="button" onclick="openDeactivateModal()"
+              class="px-4 py-2 bg-amber-100 text-amber-800 border border-amber-200 rounded-xl text-sm font-semibold hover:bg-amber-200 transition">
+        <i class="fas fa-pause-circle mr-1"></i> Deactivate
+      </button>
+      <button type="button" onclick="openRemoveModal()"
+              class="px-4 py-2 bg-red-50 text-red-700 border border-red-200 rounded-xl text-sm font-semibold hover:bg-red-100 transition">
+        <i class="fas fa-trash mr-1"></i> Remove
+      </button>
+    </div>
+  </div>
+
+  {% else %}
+  <!-- Non-hospital CG — read only -->
+  <div class="bg-slate-50 border border-slate-200 rounded-2xl p-6 mb-6">
+    <div class="flex items-start gap-3 mb-4">
+      <div class="w-10 h-10 bg-slate-200 rounded-xl flex items-center justify-center flex-shrink-0">
+        <i class="fas fa-user-lock text-slate-600"></i>
+      </div>
+      <div>
+        <h3 class="font-bold text-slate-900 text-lg">Caregiver Already Assigned</h3>
+        <p class="text-sm text-slate-600 mt-1">
+          This patient already has an active caregiver assigned. Hospital caregiver assignment is unavailable while another caregiver is active.
+        </p>
+      </div>
+    </div>
+
+    <div class="bg-white rounded-xl border border-slate-100 p-5 mb-4">
+      <div class="grid grid-cols-1 sm:grid-cols-2 gap-x-6 gap-y-3 text-sm">
+        <div>
+          <span class="text-slate-500 text-xs uppercase tracking-wide">Caregiver</span>
+          <div class="font-semibold text-slate-800 mt-0.5">{{ existing_active_caregiver.caregiver_name }}</div>
+        </div>
+        {% if caregiver_conflict_type == 'external' %}
+        <div>
+          <span class="text-slate-500 text-xs uppercase tracking-wide">Type</span>
+          <div class="font-semibold text-slate-800 mt-0.5">{{ existing_active_caregiver.type_display }}</div>
+        </div>
+        <div>
+          <span class="text-slate-500 text-xs uppercase tracking-wide">Organization</span>
+          <div class="font-medium text-slate-800 mt-0.5">{{ existing_active_caregiver.organization|default:"—" }}</div>
+        </div>
+        {% else %}
+        <div>
+          <span class="text-slate-500 text-xs uppercase tracking-wide">Role</span>
+          <div class="font-semibold text-slate-800 mt-0.5">{{ existing_active_caregiver.role_display }}</div>
+        </div>
+        <div>
+          <span class="text-slate-500 text-xs uppercase tracking-wide">Department</span>
+          <div class="font-medium text-slate-800 mt-0.5">{{ existing_active_caregiver.department_display }}</div>
+        </div>
+        {% endif %}
+        <div>
+          <span class="text-slate-500 text-xs uppercase tracking-wide">Assigned By</span>
+          <div class="font-medium text-slate-800 mt-0.5">{{ existing_active_caregiver.assigned_by_display }}</div>
+        </div>
+        <div>
+          <span class="text-slate-500 text-xs uppercase tracking-wide">Status</span>
+          <div class="mt-0.5"><span class="text-xs px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-700 font-semibold">Active</span></div>
+        </div>
+      </div>
+    </div>
+
+    <p class="text-sm text-slate-500 italic">
+      {% if caregiver_conflict_type == 'external' %}
+      This caregiver is managed outside hospital care and cannot be modified by the doctor.
+      {% else %}
+      This hospital caregiver was assigned by another doctor and cannot be modified from your account.
+      {% endif %}
+    </p>
+  </div>
+  {% endif %}
+
+  {% elif show_assignment_form %}
+  <form method="POST" id="assignmentForm" class="space-y-6">
+    {% csrf_token %}
+    {% if editing %}<input type="hidden" name="action" value="update">{% elif replace_mode %}<input type="hidden" name="action" value="replace">{% else %}<input type="hidden" name="action" value="assign">{% endif %}
+    {% if assignment %}<input type="hidden" name="patient_id" value="{{ assignment.patient.id }}">{% endif %}
+    {% if replace_mode and selected_patient %}<input type="hidden" name="patient_id" value="{{ selected_patient.id }}">{% endif %}
+    {% if not editing and not replace_mode and selected_patient %}<input type="hidden" name="patient_id" value="{{ selected_patient.id }}">{% endif %}
+
+    {% if replace_mode and selected_patient %}
+    <div class="bg-violet-50 border border-violet-100 rounded-xl px-4 py-3 text-sm text-violet-800">
+      <i class="fas fa-exchange-alt mr-1"></i> Assigning a new hospital caregiver for <strong>{{ selected_patient.get_full_name }}</strong>. The current hospital caregiver will be deactivated.
+    </div>
+    {% endif %}
+
+    {% if patient_info %}
+    <div class="bg-slate-50 rounded-2xl border border-slate-100 p-5">
+      <h3 class="font-bold text-slate-800 mb-3 text-sm">Patient Information</h3>
+      <div class="grid grid-cols-1 sm:grid-cols-2 gap-x-6 gap-y-2 text-sm">
+        <div><span class="text-slate-500">Name:</span> <span class="font-medium">{{ patient_info.patient.get_full_name }}</span></div>
+        <div><span class="text-slate-500">ID:</span> <span class="font-medium">{{ patient_info.patient.unique_id }}</span></div>
+        <div><span class="text-slate-500">Age:</span> <span class="font-medium">{{ patient_info.profile.age|default:"—" }}</span></div>
+        <div><span class="text-slate-500">Gender:</span> <span class="font-medium">{% if patient_info.profile.gender %}{{ patient_info.profile.get_gender_display }}{% else %}—{% endif %}</span></div>
+        <div class="sm:col-span-2"><span class="text-slate-500">Condition:</span> <span class="font-medium text-red-700">{{ patient_info.condition }}</span></div>
+        <div><span class="text-slate-500">Contact:</span> <span class="font-medium">{{ patient_info.patient.phone|default:"—" }}</span></div>
+        <div><span class="text-slate-500">Doctor:</span> <span class="font-medium">Dr. {{ patient_info.assigned_doctor.get_full_name }}</span></div>
+      </div>
+    </div>
+    {% endif %}
+
+    <div class="bg-white rounded-2xl shadow-sm border border-slate-100 p-6">
+      <h3 class="font-bold text-slate-800 mb-1 text-sm">Hospital Caregiver Details</h3>
+      <p class="text-xs text-slate-500 mb-4">Assign clinical staff only — nurses, hospital caregivers, monitoring staff, etc.</p>
+      <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <div>
+          <label class="block text-sm font-medium text-slate-700 mb-1">Caregiver Name <span class="text-red-500">*</span></label>
+          <input type="text" name="caregiver_name" required
+                 value="{% if assignment %}{{ assignment.caregiver_name }}{% endif %}"
+                 class="w-full p-3 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:ring-2 focus:ring-teal-500 outline-none">
+        </div>
+        <div>
+          <label class="block text-sm font-medium text-slate-700 mb-1">Caregiver Role</label>
+          <select name="caregiver_role" class="w-full p-3 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:ring-2 focus:ring-teal-500 outline-none">
+            {% for val, label in role_choices %}
+            <option value="{{ val }}" {% if assignment and assignment.caregiver_role == val %}selected{% endif %}>{{ label }}</option>
+            {% endfor %}
+          </select>
+        </div>
+        <div>
+          <label class="block text-sm font-medium text-slate-700 mb-1">Department</label>
+          <select name="department" class="w-full p-3 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:ring-2 focus:ring-teal-500 outline-none">
+            {% for val, label in department_choices %}
+            <option value="{{ val }}" {% if assignment and assignment.department == val %}selected{% endif %}>{{ label }}</option>
+            {% endfor %}
+          </select>
+        </div>
+        <div>
+          <label class="block text-sm font-medium text-slate-700 mb-1">Contact Number</label>
+          <input type="text" name="contact_number"
+                 value="{% if assignment %}{{ assignment.contact_number }}{% endif %}"
+                 class="w-full p-3 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:ring-2 focus:ring-teal-500 outline-none">
+        </div>
+        <div class="md:col-span-2">
+          <label class="block text-sm font-medium text-slate-700 mb-1">Notes / Responsibilities</label>
+          <textarea name="responsibilities" rows="2"
+                    class="w-full p-3 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:ring-2 focus:ring-teal-500 outline-none resize-none">{% if assignment %}{{ assignment.responsibilities }}{% endif %}</textarea>
+        </div>
+      </div>
+    </div>
+
+    <div class="bg-white rounded-2xl shadow-sm border border-slate-100 p-6">
+      <h3 class="font-bold text-slate-800 mb-3 text-sm">Duration <span class="font-normal text-slate-400">(optional)</span></h3>
+      <div class="flex flex-wrap gap-4 mb-3">
+        {% for val, label in duration_choices %}
+        <label class="flex items-center gap-2 cursor-pointer text-sm">
+          <input type="radio" name="duration_type" value="{{ val }}" class="text-teal-600"
+                 {% if assignment and assignment.duration_type == val %}checked{% elif not assignment and val == 'permanent' %}checked{% endif %}
+                 onchange="toggleDurationFields()">
+          {{ label }}
+        </label>
+        {% endfor %}
+      </div>
+      <div id="durationDates" class="grid grid-cols-2 gap-4 {% if not assignment or assignment.duration_type == 'permanent' %}hidden{% endif %}">
+        <div>
+          <label class="block text-xs text-slate-500 mb-1">Start Date</label>
+          <input type="date" name="start_date" value="{% if assignment.start_date %}{{ assignment.start_date|date:'Y-m-d' }}{% endif %}"
+                 class="w-full p-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm">
+        </div>
+        <div>
+          <label class="block text-xs text-slate-500 mb-1">End Date</label>
+          <input type="date" name="end_date" value="{% if assignment.end_date %}{{ assignment.end_date|date:'Y-m-d' }}{% endif %}"
+                 class="w-full p-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm">
+        </div>
+      </div>
+    </div>
+
+    <div class="bg-white rounded-2xl shadow-sm border border-slate-100 p-6">
+      <h3 class="font-bold text-slate-800 mb-1 text-sm">Dashboard Access</h3>
+      <p class="text-xs text-slate-500 mb-3">Link a hospital staff account for patient dashboard access.</p>
+      <select name="caregiver_user_id" class="w-full p-3 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:ring-2 focus:ring-teal-500 outline-none">
+        <option value="">No system account</option>
+        {% for s in hospital_staff %}
+        <option value="{{ s.id }}" {% if assignment and assignment.caregiver_user_id == s.id %}selected{% endif %}>
+          {{ s.get_full_name }} ({{ s.unique_id }})
+        </option>
+        {% endfor %}
+      </select>
+    </div>
+
+    <div class="flex flex-wrap gap-3">
+      <button type="submit" class="px-5 py-2.5 bg-teal-600 hover:bg-teal-700 text-white font-semibold rounded-xl transition text-sm">
+        {% if editing %}Save Changes{% elif replace_mode %}Assign Hospital Caregiver{% else %}Assign Caregiver{% endif %}
+      </button>
+      <a href="{% url 'doctor_assign_caregiver' %}" class="px-5 py-2.5 bg-slate-100 text-slate-700 font-semibold rounded-xl hover:bg-slate-200 transition text-sm">Cancel</a>
+    </div>
+  </form>
+
+  {% elif not selected_patient and not editing %}
+  <div class="bg-white rounded-2xl border border-dashed border-slate-200 p-10 text-center text-slate-400 text-sm">
+    Select a patient above to continue.
+  </div>
+  {% endif %}
+</div>
+
+{% if existing_active_caregiver and not replace_mode and not editing %}
+{% if caregiver_conflict_type == 'hospital_manageable' %}
+<!-- Hospital conflict popup -->
+<div id="conflictModal" class="fixed inset-0 bg-slate-900/50 z-50 flex items-center justify-center p-4">
+  <div class="bg-white rounded-2xl shadow-2xl w-full max-w-md overflow-hidden">
+    <div class="px-6 pt-6 pb-4 border-b border-slate-100">
+      <div class="w-12 h-12 bg-teal-100 rounded-2xl flex items-center justify-center mb-3">
+        <i class="fas fa-hospital-user text-teal-600 text-lg"></i>
+      </div>
+      <h3 class="font-bold text-slate-900 text-lg">Hospital Caregiver Already Assigned</h3>
+      <p class="text-sm text-slate-600 mt-2">
+        This patient already has an active hospital caregiver. You may manage or replace the caregiver if needed.
+      </p>
+    </div>
+    <div class="px-6 py-4 bg-slate-50 text-sm space-y-2">
+      <div class="flex justify-between gap-4"><span class="text-slate-500">Caregiver</span><span class="font-semibold text-slate-800 text-right">{{ existing_active_caregiver.caregiver_name }}</span></div>
+      <div class="flex justify-between gap-4"><span class="text-slate-500">Role</span><span class="font-medium text-slate-800 text-right">{{ existing_active_caregiver.role_display }}</span></div>
+      <div class="flex justify-between gap-4"><span class="text-slate-500">Department</span><span class="font-medium text-slate-800 text-right">{{ existing_active_caregiver.department_display }}</span></div>
+      <div class="flex justify-between gap-4"><span class="text-slate-500">Assigned By</span><span class="font-medium text-slate-800 text-right">{{ existing_active_caregiver.assigned_by_display }}</span></div>
+      <div class="flex justify-between gap-4"><span class="text-slate-500">Status</span><span class="font-medium text-emerald-700 text-right">Active</span></div>
+    </div>
+    <div class="px-6 py-4 flex flex-wrap gap-2 border-t border-slate-100">
+      <button type="button" onclick="closeConflictModal(); openReplaceConfirmModal();"
+              class="flex-1 min-w-[100px] px-4 py-2.5 bg-violet-600 text-white rounded-xl text-sm font-semibold hover:bg-violet-700 transition">
+        Replace
+      </button>
+      <button type="button" onclick="closeConflictModal(); openDeactivateModal();"
+              class="flex-1 min-w-[100px] px-4 py-2.5 bg-amber-100 text-amber-800 rounded-xl text-sm font-semibold hover:bg-amber-200 transition">
+        Deactivate
+      </button>
+      <button type="button" onclick="closeConflictModal(); openRemoveModal();"
+              class="flex-1 min-w-[100px] px-4 py-2.5 bg-red-50 text-red-700 border border-red-200 rounded-xl text-sm font-semibold hover:bg-red-100 transition">
+        Remove
+      </button>
+      <button type="button" onclick="closeConflictModal()"
+              class="flex-1 min-w-[100px] px-4 py-2.5 bg-slate-100 text-slate-700 rounded-xl text-sm font-semibold hover:bg-slate-200 transition">
+        Close
+      </button>
+    </div>
+  </div>
+</div>
+
+<!-- Replace confirmation -->
+<div id="replaceConfirmModal" class="fixed inset-0 bg-slate-900/50 z-50 hidden flex items-center justify-center p-4">
+  <div class="bg-white rounded-2xl shadow-2xl w-full max-w-md p-6">
+    <div class="w-12 h-12 bg-violet-100 rounded-2xl flex items-center justify-center mb-3">
+      <i class="fas fa-exchange-alt text-violet-600 text-lg"></i>
+    </div>
+    <h3 class="font-bold text-slate-900 text-lg mb-2">Replace Existing Caregiver?</h3>
+    <p class="text-sm text-slate-600 mb-6">
+      Replacing the caregiver will deactivate the current hospital caregiver.
+    </p>
+    <div class="flex gap-3">
+      <button type="button" onclick="closeReplaceConfirmModal()"
+              class="flex-1 px-4 py-2.5 bg-slate-100 text-slate-700 rounded-xl font-semibold text-sm hover:bg-slate-200 transition">
+        Cancel
+      </button>
+      <a href="{% url 'doctor_hospital_caregiver_new' %}?patient_id={{ selected_patient.id }}&replace=1"
+         class="flex-1 px-4 py-2.5 bg-violet-600 text-white rounded-xl font-semibold text-sm text-center hover:bg-violet-700 transition">
+        Continue
+      </a>
+    </div>
+  </div>
+</div>
+
+<!-- Deactivate confirmation -->
+<div id="deactivateModal" class="fixed inset-0 bg-slate-900/50 z-50 hidden flex items-center justify-center p-4">
+  <div class="bg-white rounded-2xl shadow-2xl w-full max-w-md p-6">
+    <div class="w-12 h-12 bg-amber-100 rounded-2xl flex items-center justify-center mb-3">
+      <i class="fas fa-pause-circle text-amber-600 text-lg"></i>
+    </div>
+    <h3 class="font-bold text-slate-900 text-lg mb-2">Deactivate Hospital Caregiver?</h3>
+    <p class="text-sm text-slate-600 mb-6">
+      The caregiver will become inactive and lose dashboard access. You may assign a new hospital caregiver afterward.
+    </p>
+    <form method="POST" action="{% url 'doctor_assign_caregiver' %}">
+      {% csrf_token %}
+      <input type="hidden" name="action" value="deactivate">
+      <input type="hidden" name="assignment_id" value="{{ existing_active_caregiver.source_id }}">
+      <input type="hidden" name="redirect_patient_id" value="{{ selected_patient.id }}">
+      <div class="flex gap-3">
+        <button type="button" onclick="closeDeactivateModal()"
+                class="flex-1 px-4 py-2.5 bg-slate-100 text-slate-700 rounded-xl font-semibold text-sm hover:bg-slate-200 transition">
+          Cancel
+        </button>
+        <button type="submit"
+                class="flex-1 px-4 py-2.5 bg-amber-600 text-white rounded-xl font-semibold text-sm hover:bg-amber-700 transition">
+          Deactivate
+        </button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<!-- Remove confirmation -->
+<div id="removeModal" class="fixed inset-0 bg-slate-900/50 z-50 hidden flex items-center justify-center p-4">
+  <div class="bg-white rounded-2xl shadow-2xl w-full max-w-md p-6">
+    <div class="w-12 h-12 bg-red-100 rounded-2xl flex items-center justify-center mb-3">
+      <i class="fas fa-trash text-red-600 text-lg"></i>
+    </div>
+    <h3 class="font-bold text-slate-900 text-lg mb-2">Remove Hospital Caregiver?</h3>
+    <p class="text-sm text-slate-600 mb-4">
+      This will permanently remove hospital caregiver access. Assignment history will be retained.
+    </p>
+    <form method="POST" action="{% url 'doctor_assign_caregiver' %}">
+      {% csrf_token %}
+      <input type="hidden" name="action" value="remove">
+      <input type="hidden" name="assignment_id" value="{{ existing_active_caregiver.source_id }}">
+      <input type="hidden" name="redirect_patient_id" value="{{ selected_patient.id }}">
+      <input type="text" name="removal_reason" placeholder="Reason (optional)"
+             class="w-full px-3 py-2 border border-slate-200 rounded-xl text-sm mb-4">
+      <div class="flex gap-3">
+        <button type="button" onclick="closeRemoveModal()"
+                class="flex-1 px-4 py-2.5 bg-slate-100 text-slate-700 rounded-xl font-semibold text-sm hover:bg-slate-200 transition">
+          Cancel
+        </button>
+        <button type="submit"
+                class="flex-1 px-4 py-2.5 bg-red-600 text-white rounded-xl font-semibold text-sm hover:bg-red-700 transition">
+          Remove
+        </button>
+      </div>
+    </form>
+  </div>
+</div>
+
+{% else %}
+<!-- Non-hospital read-only popup -->
+<div id="conflictModal" class="fixed inset-0 bg-slate-900/50 z-50 flex items-center justify-center p-4">
+  <div class="bg-white rounded-2xl shadow-2xl w-full max-w-md overflow-hidden">
+    <div class="px-6 pt-6 pb-4 border-b border-slate-100">
+      <div class="w-12 h-12 bg-slate-100 rounded-2xl flex items-center justify-center mb-3">
+        <i class="fas fa-user-lock text-slate-600 text-lg"></i>
+      </div>
+      <h3 class="font-bold text-slate-900 text-lg">Caregiver Already Assigned</h3>
+      <p class="text-sm text-slate-600 mt-2">
+        This patient already has an active caregiver assigned. Hospital caregiver assignment is unavailable while another caregiver is active.
+      </p>
+    </div>
+    <div class="px-6 py-4 bg-slate-50 text-sm space-y-2">
+      <div class="flex justify-between gap-4"><span class="text-slate-500">Caregiver</span><span class="font-semibold text-slate-800 text-right">{{ existing_active_caregiver.caregiver_name }}</span></div>
+      {% if caregiver_conflict_type == 'external' %}
+      <div class="flex justify-between gap-4"><span class="text-slate-500">Type</span><span class="font-medium text-slate-800 text-right">{{ existing_active_caregiver.type_display }}</span></div>
+      <div class="flex justify-between gap-4"><span class="text-slate-500">Organization</span><span class="font-medium text-slate-800 text-right">{{ existing_active_caregiver.organization|default:"—" }}</span></div>
+      {% else %}
+      <div class="flex justify-between gap-4"><span class="text-slate-500">Role</span><span class="font-medium text-slate-800 text-right">{{ existing_active_caregiver.role_display }}</span></div>
+      <div class="flex justify-between gap-4"><span class="text-slate-500">Department</span><span class="font-medium text-slate-800 text-right">{{ existing_active_caregiver.department_display }}</span></div>
+      {% endif %}
+      <div class="flex justify-between gap-4"><span class="text-slate-500">Assigned By</span><span class="font-medium text-slate-800 text-right">{{ existing_active_caregiver.assigned_by_display }}</span></div>
+      <div class="flex justify-between gap-4"><span class="text-slate-500">Status</span><span class="font-medium text-emerald-700 text-right">Active</span></div>
+    </div>
+    <p class="px-6 py-3 text-xs text-slate-500 italic border-t border-slate-100">
+      {% if caregiver_conflict_type == 'external' %}
+      This caregiver is managed outside hospital care and cannot be modified by the doctor.
+      {% else %}
+      This hospital caregiver was assigned by another doctor and cannot be modified from your account.
+      {% endif %}
+    </p>
+    <div class="px-6 py-4 border-t border-slate-100">
+      <button type="button" onclick="closeConflictModal()"
+              class="w-full px-4 py-2.5 bg-slate-100 text-slate-700 rounded-xl text-sm font-semibold hover:bg-slate-200 transition">
+        Close
+      </button>
+    </div>
+  </div>
+</div>
+{% endif %}
+{% endif %}
+
+<script>
+const newFormUrl = "{% url 'doctor_hospital_caregiver_new' %}";
+
+function onPatientChange(patientId) {
+  if (!patientId) {
+    window.location = newFormUrl;
+    return;
+  }
+  window.location = newFormUrl + '?patient_id=' + patientId;
+}
+
+function closeConflictModal() {
+  const modal = document.getElementById('conflictModal');
+  if (modal) modal.classList.add('hidden');
+}
+
+function openReplaceConfirmModal() {
+  document.getElementById('replaceConfirmModal')?.classList.remove('hidden');
+}
+
+function closeReplaceConfirmModal() {
+  document.getElementById('replaceConfirmModal')?.classList.add('hidden');
+}
+
+function openDeactivateModal() {
+  document.getElementById('deactivateModal')?.classList.remove('hidden');
+}
+
+function closeDeactivateModal() {
+  document.getElementById('deactivateModal')?.classList.add('hidden');
+}
+
+function openRemoveModal() {
+  document.getElementById('removeModal')?.classList.remove('hidden');
+}
+
+function closeRemoveModal() {
+  document.getElementById('removeModal')?.classList.add('hidden');
+}
+
+function toggleDurationFields() {
+  const temp = document.querySelector('input[name=duration_type][value=temporary]');
+  const box = document.getElementById('durationDates');
+  if (box && temp) {
+    if (temp.checked) box.classList.remove('hidden');
+    else box.classList.add('hidden');
+  }
+}
+
+if (document.getElementById('durationDates')) toggleDurationFields();
+</script>
+{% endblock %}

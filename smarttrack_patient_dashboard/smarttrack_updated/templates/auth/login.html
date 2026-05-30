@@ -1,0 +1,123 @@
+{% extends 'base.html' %}
+{% block title %}Login – SmartTrack{% endblock %}
+{% block body %}
+<div class="min-h-screen bg-gradient-to-br from-slate-950 via-slate-900 to-blue-950 flex items-center justify-center px-4 py-8 relative">
+  <div class="absolute top-4 right-4 z-20">
+    </div>
+  <div class="absolute top-20 left-20 w-72 h-72 bg-blue-600/10 rounded-full blur-3xl"></div>
+  <div class="absolute bottom-20 right-20 w-96 h-96 bg-violet-600/10 rounded-full blur-3xl"></div>
+  <div class="w-full max-w-md relative z-10">
+    <div class="text-center mb-8">
+      <a href="/" class="inline-flex items-center gap-3">
+        <div class="w-12 h-12 bg-gradient-to-br from-blue-500 to-violet-600 rounded-2xl flex items-center justify-center shadow-lg">
+          <i class="fas fa-heartbeat text-white text-xl"></i>
+        </div>
+        <span class="font-bold text-2xl text-white">SmartTrack</span>
+      </a>
+      <p class="text-slate-400 mt-2 text-sm">Healthcare Management Platform</p>
+    </div>
+    <div class="bg-white/5 backdrop-blur-xl border border-white/10 rounded-3xl p-8 shadow-2xl">
+      <h2 class="text-2xl font-bold text-white mb-1">Welcome back</h2>
+      <p class="text-slate-400 text-sm mb-6">Sign in to your healthcare account</p>
+
+      {% if messages %}
+        {% for message in messages %}
+        <div class="mb-4 p-3 rounded-xl {% if message.tags == 'error' %}bg-red-500/20 text-red-300 border border-red-500/30{% else %}bg-emerald-500/20 text-emerald-300 border border-emerald-500/30{% endif %} text-sm flex items-center gap-2">
+          <i class="fas fa-{% if message.tags == 'error' %}exclamation-triangle{% else %}check-circle{% endif %}"></i>
+          {{ message }}
+        </div>
+        {% endfor %}
+      {% endif %}
+
+      <form method="POST" class="space-y-5">
+        {% csrf_token %}
+        <div>
+          <label class="text-sm text-slate-300 font-medium mb-2 block">Select Your Role</label>
+          <div class="grid grid-cols-2 gap-2">
+            <label class="role-btn cursor-pointer" onclick="selectRole('patient')">
+              <input type="radio" name="role" value="patient" id="rolePatient" class="hidden" checked>
+              <div id="rdPatient" class="role-option active-role flex items-center justify-center gap-2 p-3 rounded-xl border text-sm font-medium transition-all">
+                <i class="fas fa-user"></i> Patient
+              </div>
+            </label>
+            <label class="role-btn cursor-pointer" onclick="selectRole('doctor')">
+              <input type="radio" name="role" value="doctor" id="roleDoctor" class="hidden">
+              <div id="rdDoctor" class="role-option flex items-center justify-center gap-2 p-3 rounded-xl border border-white/20 text-slate-300 text-sm font-medium hover:bg-white/10 transition-all">
+                <i class="fas fa-user-md"></i> Doctor
+              </div>
+            </label>
+            <label class="role-btn cursor-pointer" onclick="selectRole('caregiver')">
+              <input type="radio" name="role" value="caregiver" id="roleCaregiver" class="hidden">
+              <div id="rdCaregiver" class="role-option flex items-center justify-center gap-2 p-3 rounded-xl border border-white/20 text-slate-300 text-sm font-medium hover:bg-white/10 transition-all">
+                <i class="fas fa-hand-holding-heart"></i> Caregiver
+              </div>
+            </label>
+            <label class="role-btn cursor-pointer" onclick="selectRole('admin')">
+              <input type="radio" name="role" value="admin" id="roleAdmin" class="hidden">
+              <div id="rdAdmin" class="role-option flex items-center justify-center gap-2 p-3 rounded-xl border border-white/20 text-slate-300 text-sm font-medium hover:bg-white/10 transition-all">
+                <i class="fas fa-shield-halved"></i> Admin
+              </div>
+            </label>
+          </div>
+        </div>
+        <div>
+          <label class="text-sm text-slate-300 font-medium mb-1.5 block">Email Address</label>
+          <div class="relative">
+            <i class="fas fa-envelope absolute left-4 top-1/2 -translate-y-1/2 text-slate-500"></i>
+            <input type="email" name="email" required placeholder="you@example.com"
+                   class="w-full pl-11 pr-4 py-3 bg-white/10 border border-white/20 rounded-xl text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm">
+          </div>
+        </div>
+        <div>
+          <label class="text-sm text-slate-300 font-medium mb-1.5 block">Password</label>
+          <div class="relative">
+            <i class="fas fa-lock absolute left-4 top-1/2 -translate-y-1/2 text-slate-500"></i>
+            <input type="password" name="password" id="password" required placeholder="Password"
+                   class="w-full pl-11 pr-12 py-3 bg-white/10 border border-white/20 rounded-xl text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm">
+            <button type="button" onclick="togglePwd('password','eyeIcon')" class="absolute right-4 top-1/2 -translate-y-1/2 text-slate-500 hover:text-slate-300">
+              <i id="eyeIcon" class="fas fa-eye-slash"></i>
+            </button>
+          </div>
+        </div>
+        <div class="flex items-center justify-between">
+          <label class="flex items-center gap-2 text-sm text-slate-400 cursor-pointer">
+            <input type="checkbox" name="remember" class="rounded border-white/20 bg-white/10">
+            Remember me
+          </label>
+          <a href="/auth/forgot-password/" class="text-sm text-blue-400 hover:text-blue-300">Forgot password?</a>
+        </div>
+        <button type="submit" class="w-full py-3.5 bg-gradient-to-r from-blue-600 to-violet-600 hover:from-blue-500 hover:to-violet-500 text-white font-bold rounded-xl transition-all transform hover:scale-[1.02] shadow-lg shadow-blue-500/25 text-sm">
+          Sign In to SmartTrack
+        </button>
+      </form>
+      <p class="text-center mt-6 text-slate-400 text-sm">
+        Don't have an account?
+        <a href="/auth/signup/" class="text-blue-400 hover:text-blue-300 font-semibold">Create Account</a>
+      </p>
+    </div>
+  </div>
+</div>
+<style>
+.active-role { background: rgba(99,102,241,0.3); border-color: rgb(99,102,241); color: white; }
+</style>
+<script>
+const roleColors = { patient: 'rgba(16,185,129,0.25)', doctor: 'rgba(99,102,241,0.25)', caregiver: 'rgba(168,85,247,0.25)', admin: 'rgba(245,158,11,0.25)' };
+const roleBorders = { patient: 'rgb(16,185,129)', doctor: 'rgb(99,102,241)', caregiver: 'rgb(168,85,247)', admin: 'rgb(245,158,11)' };
+function selectRole(role) {
+  ['patient','doctor','caregiver','admin'].forEach(r => {
+    const el = document.getElementById('rd' + r.charAt(0).toUpperCase() + r.slice(1));
+    el.style.background = ''; el.style.borderColor = ''; el.style.color = '';
+    el.className = 'role-option flex items-center justify-center gap-2 p-3 rounded-xl border border-white/20 text-slate-300 text-sm font-medium hover:bg-white/10 transition-all';
+  });
+  const active = document.getElementById('rd' + role.charAt(0).toUpperCase() + role.slice(1));
+  active.style.background = roleColors[role]; active.style.borderColor = roleBorders[role]; active.style.color = 'white';
+  document.getElementById('role' + role.charAt(0).toUpperCase() + role.slice(1)).checked = true;
+}
+selectRole('patient');
+function togglePwd(id, iconId) {
+  const inp = document.getElementById(id); const icon = document.getElementById(iconId);
+  if (inp.type === 'password') { inp.type = 'text'; icon.className = 'fas fa-eye'; }
+  else { inp.type = 'password'; icon.className = 'fas fa-eye-slash'; }
+}
+</script>
+{% endblock %}

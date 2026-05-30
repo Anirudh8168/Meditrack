@@ -1,0 +1,8 @@
+{% extends 'system_admin/base.html' %}
+{% block content %}
+<div class="bg-white rounded-2xl border shadow-sm overflow-hidden">
+  <table class="w-full text-sm"><thead><tr class="bg-slate-50 text-xs uppercase"><th class="px-5 py-3 text-left">Patient</th><th class="px-4 py-3">Doctor</th><th class="px-4 py-3">Date</th><th class="px-4 py-3">Type</th><th class="px-4 py-3">Status</th></tr></thead>
+  <tbody>{% for v in page %}<tr class="border-b"><td class="px-5 py-3">{{ v.patient.get_full_name }}</td><td class="px-4 py-3">Dr. {{ v.doctor.get_full_name }}</td><td class="px-4 py-3">{{ v.appointment_date }}</td><td class="px-4 py-3">{{ v.appointment_type }}</td><td class="px-4 py-3">{{ v.status }}</td></tr>{% empty %}<tr><td colspan="5" class="py-10 text-center text-slate-400">No video consultations.</td></tr>{% endfor %}</tbody></table>
+  <div class="p-5">{% include 'system_admin/includes/pagination.html' %}</div>
+</div>
+{% endblock %}

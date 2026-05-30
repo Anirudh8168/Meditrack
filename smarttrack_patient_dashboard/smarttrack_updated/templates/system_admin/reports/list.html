@@ -1,0 +1,64 @@
+{% extends 'system_admin/base.html' %}
+{% block page_title %}Reports & Analytics{% endblock %}
+{% block page_subtitle %}System reports, exports, and analytics overview{% endblock %}
+{% block content %}
+<div class="space-y-6 animate-fade-in">
+
+  <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
+    <div class="admin-stat-card">
+      <div class="admin-stat-icon bg-violet-50 text-violet-600"><i class="fas fa-file-medical"></i></div>
+      <div class="admin-stat-value">{{ total_reports }}</div>
+      <div class="admin-stat-label">Total Reports</div>
+    </div>
+    <div class="admin-stat-card">
+      <div class="admin-stat-icon bg-blue-50 text-blue-600"><i class="fas fa-hospital-user"></i></div>
+      <div class="admin-stat-value">{{ total_patients }}</div>
+      <div class="admin-stat-label">Patients</div>
+    </div>
+    <div class="admin-stat-card">
+      <div class="admin-stat-icon bg-red-50 text-red-600"><i class="fas fa-heart-pulse"></i></div>
+      <div class="admin-stat-value">{{ high_risk_count }}</div>
+      <div class="admin-stat-label">High-Risk Patients</div>
+    </div>
+    <div class="admin-stat-card">
+      <div class="admin-stat-icon bg-emerald-50 text-emerald-600"><i class="fas fa-pills"></i></div>
+      <div class="admin-stat-value">{{ adherence_pct }}%</div>
+      <div class="admin-stat-label">Med Adherence (7d)</div>
+    </div>
+  </div>
+
+  <div class="admin-panel">
+    <div class="admin-panel-header">
+      <h3 class="font-bold text-slate-800 text-sm">Export Data</h3>
+    </div>
+    <div class="admin-panel-body flex flex-wrap gap-3">
+      <a href="{% url 'system_admin_reports_export' %}?type=patients&format=csv" class="admin-btn-primary no-underline"><i class="fas fa-download mr-1"></i> Export Patients</a>
+      <a href="{% url 'system_admin_reports_export' %}?type=appointments&format=csv" class="px-4 py-2 bg-blue-600 text-white rounded-xl text-sm font-semibold no-underline hover:opacity-90"><i class="fas fa-download mr-1"></i> Export Appointments</a>
+      <a href="{% url 'system_admin_reports_export' %}?type=risk&format=csv" class="px-4 py-2 bg-red-600 text-white rounded-xl text-sm font-semibold no-underline hover:opacity-90"><i class="fas fa-download mr-1"></i> Export Risk Data</a>
+    </div>
+  </div>
+
+  <div class="admin-panel">
+    <div class="admin-panel-header"><h3 class="font-bold text-slate-800 text-sm">Generated Reports</h3></div>
+    <div class="overflow-x-auto">
+      <table class="admin-table">
+        <thead><tr><th>Title</th><th>Patient</th><th>Doctor</th><th>Date</th></tr></thead>
+        <tbody>
+          {% for r in page %}
+          <tr>
+            <td class="font-semibold text-slate-800">{{ r.title }}</td>
+            <td>{{ r.patient.get_full_name }}</td>
+            <td>Dr. {{ r.doctor.get_full_name }}</td>
+            <td class="text-slate-500">{{ r.created_at|date:"M j, Y" }}</td>
+          </tr>
+          {% empty %}
+          <tr><td colspan="4" class="text-center py-12 text-slate-400">No reports generated yet.</td></tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+    <div class="admin-panel-body border-t border-slate-100 py-4">{% include 'system_admin/includes/pagination.html' %}</div>
+  </div>
+
+</div>
+{% endblock %}

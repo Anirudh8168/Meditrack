@@ -1,0 +1,103 @@
+{% extends 'system_admin/base.html' %}
+{% block content %}
+<div class="space-y-6">
+  <div class="flex flex-wrap items-center justify-between gap-3">
+    <div>
+      <h2 class="text-xl font-bold text-slate-800">Payment Management</h2>
+      <p class="text-sm text-slate-500 mt-0.5">Read-only view of consultation payments · no manual edits</p>
+    </div>
+    <form method="get" class="flex gap-2">
+      {% if status_filter %}<input type="hidden" name="status" value="{{ status_filter }}">{% endif %}
+      <input type="search" name="q" value="{{ q }}" placeholder="Search ID, patient, doctor…"
+        class="px-3 py-2 border border-slate-200 rounded-xl text-sm w-56">
+      <button type="submit" class="px-4 py-2 bg-blue-600 text-white rounded-xl text-sm font-semibold">Search</button>
+    </form>
+  </div>
+
+  <div class="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-3">
+    <div class="bg-white rounded-xl border p-4">
+      <div class="text-2xl font-black text-slate-800">{{ stats.total }}</div>
+      <div class="text-xs text-slate-500">Total Records</div>
+    </div>
+    <div class="bg-white rounded-xl border border-emerald-100 p-4">
+      <div class="text-2xl font-black text-emerald-600">₹{{ stats.paid_amount }}</div>
+      <div class="text-xs text-slate-500">Collected ({{ stats.paid }})</div>
+    </div>
+    <div class="bg-white rounded-xl border border-amber-100 p-4">
+      <div class="text-2xl font-black text-amber-600">₹{{ stats.pending_amount }}</div>
+      <div class="text-xs text-slate-500">Pending ({{ stats.pending }})</div>
+    </div>
+    <div class="bg-white rounded-xl border p-4">
+      <div class="text-2xl font-black text-red-600">{{ stats.failed }}</div>
+      <div class="text-xs text-slate-500">Failed</div>
+    </div>
+    <div class="bg-white rounded-xl border p-4">
+      <div class="text-2xl font-black text-slate-600">{{ stats.refunded }}</div>
+      <div class="text-xs text-slate-500">Refunded</div>
+    </div>
+  </div>
+
+  <div class="flex flex-wrap gap-2">
+    <a href="{% url 'system_admin_payments' %}" class="text-xs px-3 py-1.5 rounded-full font-semibold {% if not status_filter %}bg-blue-600 text-white{% else %}bg-slate-100 text-slate-600{% endif %}">All</a>
+    <a href="?status=paid" class="text-xs px-3 py-1.5 rounded-full font-semibold {% if status_filter == 'paid' %}bg-emerald-600 text-white{% else %}bg-slate-100 text-slate-600{% endif %}">Paid</a>
+    <a href="?status=pending" class="text-xs px-3 py-1.5 rounded-full font-semibold {% if status_filter == 'pending' %}bg-amber-500 text-white{% else %}bg-slate-100 text-slate-600{% endif %}">Pending</a>
+    <a href="?status=processing" class="text-xs px-3 py-1.5 rounded-full font-semibold {% if status_filter == 'processing' %}bg-blue-500 text-white{% else %}bg-slate-100 text-slate-600{% endif %}">Processing</a>
+    <a href="?status=failed" class="text-xs px-3 py-1.5 rounded-full font-semibold {% if status_filter == 'failed' %}bg-red-600 text-white{% else %}bg-slate-100 text-slate-600{% endif %}">Failed</a>
+    <a href="?status=refunded" class="text-xs px-3 py-1.5 rounded-full font-semibold {% if status_filter == 'refunded' %}bg-slate-600 text-white{% else %}bg-slate-100 text-slate-600{% endif %}">Refunded</a>
+  </div>
+
+  <div class="bg-white rounded-2xl border overflow-hidden">
+    <div class="overflow-x-auto">
+      <table class="w-full text-sm text-left">
+        <thead class="bg-slate-50 text-slate-500 text-xs uppercase">
+          <tr>
+            <th class="px-4 py-3">Payment ID</th>
+            <th class="px-4 py-3">Patient</th>
+            <th class="px-4 py-3">Doctor</th>
+            <th class="px-4 py-3">Type</th>
+            <th class="px-4 py-3">Amount</th>
+            <th class="px-4 py-3">Status</th>
+            <th class="px-4 py-3">Transaction</th>
+            <th class="px-4 py-3">Date</th>
+          </tr>
+        </thead>
+        <tbody class="divide-y divide-slate-100">
+          {% for p in page.object_list %}
+          <tr class="hover:bg-slate-50/80">
+            <td class="px-4 py-3 font-mono text-xs">{{ p.payment_id }}</td>
+            <td class="px-4 py-3">{{ p.patient.get_full_name }}</td>
+            <td class="px-4 py-3">Dr. {{ p.doctor.get_full_name }}</td>
+            <td class="px-4 py-3">{{ p.appointment_type_display }}</td>
+            <td class="px-4 py-3 font-bold">₹{{ p.amount }}</td>
+            <td class="px-4 py-3">
+              <span class="text-[10px] px-2 py-0.5 rounded-full font-bold uppercase
+                {% if p.payment_status == 'paid' %}bg-emerald-100 text-emerald-700
+                {% elif p.payment_status == 'pending' %}bg-amber-100 text-amber-800
+                {% elif p.payment_status == 'failed' %}bg-red-100 text-red-700
+                {% else %}bg-slate-100 text-slate-600{% endif %}">{{ p.get_payment_status_display }}</span>
+            </td>
+            <td class="px-4 py-3 text-xs text-slate-500">{{ p.transaction_id|default:"—" }}</td>
+            <td class="px-4 py-3 text-xs text-slate-500">{{ p.created_at|date:"M j, Y g:i A" }}</td>
+          </tr>
+          {% empty %}
+          <tr><td colspan="8" class="px-4 py-12 text-center text-slate-400">No payment records found.</td></tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+    {% if page.has_other_pages %}
+    <div class="px-4 py-3 border-t flex justify-between items-center text-xs text-slate-500">
+      <span>Page {{ page.number }} of {{ page.paginator.num_pages }}</span>
+      <div class="flex gap-2">
+        {% if page.has_previous %}
+        <a href="?page={{ page.previous_page_number }}{% if status_filter %}&status={{ status_filter }}{% endif %}{% if q %}&q={{ q }}{% endif %}" class="px-3 py-1 bg-slate-100 rounded-lg">Previous</a>
+        {% endif %}
+        {% if page.has_next %}
+        <a href="?page={{ page.next_page_number }}{% if status_filter %}&status={{ status_filter }}{% endif %}{% if q %}&q={{ q }}{% endif %}" class="px-3 py-1 bg-slate-100 rounded-lg">Next</a>
+        {% endif %}
+      </div>
+    </div>
+    {% endif %}
+  </div>
+</div>
+{% endblock %}

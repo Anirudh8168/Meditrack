@@ -1,0 +1,217 @@
+{% extends 'base_dashboard.html' %}
+{% block page_title %}Patient: {{ patient.get_full_name }}{% endblock %}
+{% block page_subtitle %}Caregiver View{% endblock %}
+
+{% block content %}
+<div class="p-6 space-y-6">
+
+  <!-- Back + Patient Header -->
+  <div class="flex items-center gap-4">
+    <a href="/dashboard/caregiver/" class="p-2 rounded-xl bg-white border border-slate-200 hover:bg-slate-50 transition">
+      <i class="fas fa-arrow-left text-slate-600"></i>
+    </a>
+    <div class="bg-white rounded-2xl p-5 flex-1 shadow-sm border border-slate-100 flex items-center gap-4">
+      <div class="w-16 h-16 rounded-full bg-gradient-to-br from-purple-500 to-pink-500 flex items-center justify-center text-white text-2xl font-bold">
+        {{ patient.first_name|first }}{{ patient.last_name|first }}
+      </div>
+      <div class="flex-1">
+        <h2 class="text-xl font-bold text-slate-800">{{ patient.get_full_name }}</h2>
+        <div class="flex flex-wrap gap-4 text-sm text-slate-500 mt-1">
+          <span><i class="fas fa-id-badge mr-1"></i>{{ patient.unique_id }}</span>
+          {% if profile %}<span><i class="fas fa-tint mr-1"></i>{{ profile.blood_group }}</span>
+          <span><i class="fas fa-birthday-cake mr-1"></i>Age {{ profile.age }}</span>{% endif %}
+        </div>
+      </div>
+      <div class="flex gap-2 flex-wrap">
+        {% if assignment.can_log_activities %}
+        <a href="/dashboard/caregiver/patient/{{ patient.id }}/log-activity/"
+           class="bg-purple-600 hover:bg-purple-700 text-white text-sm px-4 py-2 rounded-xl transition flex items-center gap-2">
+          <i class="fas fa-plus"></i> Log Activity
+        </a>
+        {% endif %}
+      </div>
+    </div>
+  </div>
+
+  <!-- Risk + Adherence Row -->
+  <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+    <div class="bg-white rounded-2xl p-5 shadow-sm border border-slate-100">
+      <div class="text-xs text-slate-500 mb-1">Health Risk</div>
+      {% if risk %}
+      <div class="text-2xl font-bold {% if risk.level == 'high' %}text-red-600{% elif risk.level == 'medium' %}text-amber-500{% else %}text-emerald-600{% endif %}">
+        {{ risk.level|upper }}
+      </div>
+      <div class="text-xs text-slate-500">Score: {{ risk.score }}/100</div>
+      {% else %}
+      <div class="text-2xl font-bold text-emerald-600">LOW</div>
+      {% endif %}
+    </div>
+    <div class="bg-white rounded-2xl p-5 shadow-sm border border-slate-100">
+      <div class="text-xs text-slate-500 mb-1">7-Day Adherence</div>
+      <div class="text-2xl font-bold {% if adherence >= 80 %}text-emerald-600{% elif adherence >= 50 %}text-amber-500{% else %}text-red-600{% endif %}">
+        {{ adherence }}%
+      </div>
+      <div class="text-xs text-slate-500">Medicine compliance</div>
+    </div>
+    <div class="bg-white rounded-2xl p-5 shadow-sm border border-slate-100">
+      <div class="text-xs text-slate-500 mb-1">Active Medicines</div>
+      <div class="text-2xl font-bold text-blue-600">{{ medicines|length }}</div>
+      <div class="text-xs text-slate-500">Currently prescribed</div>
+    </div>
+  </div>
+
+  <!-- Today's Medicines -->
+  <div class="bg-white rounded-2xl p-5 shadow-sm border border-slate-100">
+    <h3 class="font-bold text-slate-800 mb-4 flex items-center gap-2">
+      <i class="fas fa-pills text-blue-500"></i>
+      Today's Medicines
+    </h3>
+    {% if today_logs %}
+    <div class="space-y-3">
+      {% for log in today_logs %}
+      <div class="flex items-center gap-4 p-4 rounded-xl {% if log.status == 'taken' %}bg-emerald-50 border border-emerald-100{% elif log.status == 'missed' %}bg-red-50 border border-red-100{% else %}bg-slate-50{% endif %}">
+        <div class="w-10 h-10 rounded-xl flex items-center justify-center
+          {% if log.status == 'taken' %}bg-emerald-100{% elif log.status == 'missed' %}bg-red-100{% else %}bg-blue-100{% endif %}">
+          <i class="fas fa-pills {% if log.status == 'taken' %}text-emerald-600{% elif log.status == 'missed' %}text-red-500{% else %}text-blue-500{% endif %}"></i>
+        </div>
+        <div class="flex-1">
+          <div class="font-semibold text-slate-800">{{ log.medicine.name }}</div>
+          <div class="text-xs text-slate-500">{{ log.medicine.dosage }} · {{ log.scheduled_time|date:"H:i" }}</div>
+        </div>
+        <div class="flex items-center gap-3">
+          <span class="text-xs px-2 py-1 rounded-full font-semibold
+            {% if log.status == 'taken' %}bg-emerald-100 text-emerald-700{% elif log.status == 'missed' %}bg-red-100 text-red-700{% else %}bg-slate-100 text-slate-600{% endif %}">
+            {{ log.status|capfirst }}
+          </span>
+          {% if log.status != 'taken' and assignment.can_mark_medicines %}
+          <button onclick="markMedicineTaken({{ log.id }}, this)"
+                  class="bg-blue-600 hover:bg-blue-700 text-white text-xs px-3 py-1.5 rounded-lg transition">
+            Mark Taken
+          </button>
+          {% endif %}
+          {% if log.status == 'taken' and log.marked_by %}
+          <span class="text-xs text-slate-400">by {{ log.marked_by.get_full_name }}</span>
+          {% endif %}
+        </div>
+      </div>
+      {% endfor %}
+    </div>
+    {% else %}
+    <p class="text-slate-500 text-sm text-center py-4">No medicine logs for today.</p>
+    {% endif %}
+  </div>
+
+  <!-- Adherence Chart + Activities -->
+  <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+
+    <!-- Chart -->
+    <div class="bg-white rounded-2xl p-5 shadow-sm border border-slate-100">
+      <h3 class="font-bold text-slate-800 mb-4 flex items-center gap-2">
+        <i class="fas fa-chart-bar text-purple-500"></i>
+        7-Day Adherence
+      </h3>
+      <div class="flex items-end gap-2 h-32">
+        {% for day in chart_data %}
+        <div class="flex-1 flex flex-col items-center gap-1">
+          <div class="w-full rounded-t-lg {% if day.pct >= 80 %}bg-emerald-400{% elif day.pct >= 50 %}bg-amber-400{% else %}bg-red-400{% endif %}"
+               style="height: {{ day.pct }}%; min-height: 4px;"></div>
+          <div class="text-xs text-slate-500">{{ day.day }}</div>
+        </div>
+        {% endfor %}
+      </div>
+    </div>
+
+    <!-- Recent Activities -->
+    <div class="bg-white rounded-2xl p-5 shadow-sm border border-slate-100">
+      <div class="flex items-center justify-between mb-4">
+        <h3 class="font-bold text-slate-800 flex items-center gap-2">
+          <i class="fas fa-running text-emerald-500"></i>
+          Recent Activities
+        </h3>
+        {% if assignment.can_log_activities %}
+        <a href="/dashboard/caregiver/patient/{{ patient.id }}/log-activity/" class="text-xs text-purple-600 hover:underline">+ Add</a>
+        {% endif %}
+      </div>
+      {% if activities %}
+      <div class="space-y-2">
+        {% for act in activities %}
+        <div class="flex items-center gap-3 p-3 rounded-xl bg-slate-50">
+          <div class="w-8 h-8 rounded-lg bg-blue-100 flex items-center justify-center">
+            <i class="fas fa-{% if act.activity_type == 'exercise' %}running{% elif act.activity_type == 'diet' %}apple-alt{% elif act.activity_type == 'sleep' %}bed{% else %}heartbeat{% endif %} text-blue-600 text-xs"></i>
+          </div>
+          <div class="flex-1 min-w-0">
+            <div class="text-sm font-semibold text-slate-800 truncate">{{ act.title }}</div>
+            <div class="text-xs text-slate-500">{{ act.activity_type|capfirst }} · {{ act.recorded_at|date:"M d" }}</div>
+          </div>
+          {% if act.file_upload %}
+          <a href="{{ act.file_upload.url }}" target="_blank" class="text-blue-500 text-xs"><i class="fas fa-paperclip"></i></a>
+          {% endif %}
+        </div>
+        {% endfor %}
+      </div>
+      {% else %}
+      <p class="text-sm text-slate-500 text-center py-4">No activities logged.</p>
+      {% endif %}
+    </div>
+  </div>
+
+  <!-- Upcoming Appointments -->
+  <div class="bg-white rounded-2xl p-5 shadow-sm border border-slate-100">
+    <h3 class="font-bold text-slate-800 mb-4 flex items-center gap-2">
+      <i class="fas fa-calendar text-blue-500"></i>
+      Upcoming Appointments
+    </h3>
+    {% if appointments %}
+    <div class="space-y-3">
+      {% for apt in appointments %}
+      <div class="flex items-center gap-4 p-4 rounded-xl bg-slate-50">
+        <div class="w-10 h-10 bg-blue-100 rounded-xl flex items-center justify-center">
+          <i class="fas fa-stethoscope text-blue-600"></i>
+        </div>
+        <div class="flex-1">
+          <div class="font-semibold text-slate-800">Dr. {{ apt.doctor.get_full_name }}</div>
+          <div class="text-xs text-slate-500">{{ apt.appointment_date }} at {{ apt.appointment_time }} · {{ apt.appointment_type|capfirst }}</div>
+        </div>
+        <span class="text-xs px-2 py-1 rounded-full font-semibold
+          {% if apt.status == 'confirmed' %}bg-emerald-100 text-emerald-700{% else %}bg-amber-100 text-amber-700{% endif %}">
+          {{ apt.status|capfirst }}
+        </span>
+      </div>
+      {% endfor %}
+    </div>
+    {% else %}
+    <p class="text-sm text-slate-500 text-center py-4">No upcoming appointments.</p>
+    {% endif %}
+  </div>
+
+</div>
+
+<script>
+function markMedicineTaken(logId, btn) {
+  showConfirmModal({
+    title: 'Mark Medicine Taken?',
+    message: 'Mark this medicine as taken on behalf of the patient?',
+    confirmText: 'Mark Taken',
+    variant: 'info',
+  }).then(function (ok) {
+    if (!ok) return;
+    fetch(`/dashboard/caregiver/mark-medicine/${logId}/`, {
+      method: 'POST',
+      headers: {'X-CSRFToken': '{{ csrf_token }}', 'Content-Type': 'application/json'},
+    })
+    .then(r => r.json())
+    .then(data => {
+      if (data.success) {
+        showToast('success', 'Medicine Logged', 'Medicine marked as taken successfully.');
+        btn.closest('.flex').querySelector('span').className = 'text-xs px-2 py-1 rounded-full font-semibold bg-emerald-100 text-emerald-700';
+        btn.closest('.flex').querySelector('span').textContent = 'Taken';
+        btn.remove();
+        setTimeout(function () { location.reload(); }, 800);
+      } else {
+        showToast('error', 'Unable to Mark', data.error || 'Failed to mark medicine.');
+      }
+    });
+  });
+}
+</script>
+{% endblock %}

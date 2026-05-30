@@ -1,0 +1,59 @@
+{% extends 'system_admin/base.html' %}
+{% block page_title %}{{ page_title|default:"Doctor Management" }}{% endblock %}
+{% block page_subtitle %}{{ page_subtitle|default:"View and inspect registered doctors" }}{% endblock %}
+{% block content %}
+<div class="admin-panel animate-fade-in">
+  <div class="admin-panel-header">
+    {% include 'system_admin/includes/search_filter.html' with search_placeholder='Search name, email, doctor ID...' filter_type='doctor' %}
+  </div>
+  <div class="overflow-x-auto">
+    <table class="admin-table">
+      <thead>
+        <tr>
+          <th>Doctor</th>
+          <th>Doctor ID</th>
+          <th class="hidden md:table-cell">Specialization</th>
+          <th>Patients</th>
+          <th>Status</th>
+          <th class="hidden sm:table-cell">Joined Date</th>
+          <th class="admin-table-actions">Actions</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for d in page %}
+        {% url 'system_admin_doctor_detail' d.id as doctor_view_url %}
+        {% url 'system_admin_doctor_edit' d.id as doctor_edit_url %}
+        {% url 'system_admin_doctor_remove' d.id as doctor_delete_url %}
+        <tr>
+          <td>
+            <div class="font-semibold text-slate-800">Dr. {{ d.get_full_name }}</div>
+            <div class="text-xs text-slate-400">{{ d.email }}</div>
+          </td>
+          <td class="text-slate-500 font-mono text-xs">{{ d.unique_id }}</td>
+          <td class="hidden md:table-cell text-slate-600">
+            {% if d.doctor_profile %}{{ d.doctor_profile.get_specialty_display|default:d.doctor_profile.specialty|default:"—" }}{% else %}—{% endif %}
+          </td>
+          <td class="font-semibold text-slate-700">{{ d.patients_count|default:0 }}</td>
+          <td>
+            {% if not d.is_active %}
+            <span class="admin-badge suspended">Suspended</span>
+            {% elif d.doctor_profile and d.doctor_profile.available_for_consultation %}
+            <span class="admin-badge active">Active</span>
+            {% else %}
+            <span class="admin-badge pending">Pending</span>
+            {% endif %}
+          </td>
+          <td class="hidden sm:table-cell text-slate-500">{{ d.date_joined|date:"M j, Y" }}</td>
+          <td class="admin-table-actions">
+            {% include 'system_admin/includes/table_actions.html' with view_url=doctor_view_url edit_url=doctor_edit_url delete_url=doctor_delete_url delete_name=d.get_full_name %}
+          </td>
+        </tr>
+        {% empty %}
+        <tr><td colspan="7" class="text-center py-12 text-slate-400">No doctors found.</td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  <div class="admin-panel-body border-t border-slate-100 py-4">{% include 'system_admin/includes/pagination.html' %}</div>
+</div>
+{% endblock %}

@@ -1,0 +1,200 @@
+{% extends 'base_dashboard.html' %}
+{% block title %}Hospital Caregiver Management{% endblock %}
+{% block page_title %}Hospital Caregiver Management{% endblock %}
+{% block page_subtitle %}Assign and manage clinical caregivers for patient support.{% endblock %}
+
+{% block content %}
+<div class="max-w-6xl mx-auto">
+  <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-6">
+    <p class="text-sm text-slate-500 max-w-xl">One active hospital caregiver per patient.</p>
+    <a href="{% url 'doctor_hospital_caregiver_new' %}"
+       class="inline-flex items-center justify-center gap-2 px-4 py-2.5 bg-teal-600 hover:bg-teal-700 text-white font-semibold rounded-xl shadow-sm transition text-sm">
+      <i class="fas fa-plus"></i> Assign Caregiver
+    </a>
+  </div>
+
+  <div class="grid grid-cols-2 md:grid-cols-3 gap-4 mb-6">
+    <div class="bg-white rounded-2xl border border-slate-100 p-4 shadow-sm">
+      <div class="text-xs text-slate-500 font-medium">Active</div>
+      <div class="text-2xl font-black text-emerald-600 mt-1">{{ active_count }}</div>
+    </div>
+    <div class="bg-white rounded-2xl border border-slate-100 p-4 shadow-sm">
+      <div class="text-xs text-slate-500 font-medium">Inactive</div>
+      <div class="text-2xl font-black text-amber-600 mt-1">{{ inactive_count }}</div>
+    </div>
+    <div class="bg-white rounded-2xl border border-slate-100 p-4 shadow-sm col-span-2 md:col-span-1">
+      <div class="text-xs text-slate-500 font-medium">Total</div>
+      <div class="text-2xl font-black text-slate-700 mt-1">{{ assignments.count }}</div>
+    </div>
+  </div>
+
+  <div class="bg-white rounded-2xl shadow-sm border border-slate-100 overflow-hidden">
+    <div class="px-6 py-4 border-b border-slate-100 bg-slate-50">
+      <h2 class="font-bold text-slate-800 flex items-center gap-2 text-sm">
+        <i class="fas fa-hospital-user text-teal-600"></i> Assigned Caregivers
+      </h2>
+    </div>
+
+    {% if assignments %}
+    <div class="overflow-x-auto">
+      <table class="w-full text-sm">
+        <thead>
+          <tr class="text-left text-xs uppercase tracking-wider text-slate-500 border-b border-slate-100 bg-slate-50/50">
+            <th class="px-6 py-3 font-semibold">Patient</th>
+            <th class="px-4 py-3 font-semibold">Caregiver</th>
+            <th class="px-4 py-3 font-semibold">Role</th>
+            <th class="px-4 py-3 font-semibold hidden md:table-cell">Department</th>
+            <th class="px-4 py-3 font-semibold hidden lg:table-cell">Duration</th>
+            <th class="px-4 py-3 font-semibold">Status</th>
+            <th class="px-6 py-3 font-semibold text-right">Actions</th>
+          </tr>
+        </thead>
+        <tbody class="divide-y divide-slate-100">
+          {% for a in assignments %}
+          <tr class="hover:bg-slate-50/80 transition">
+            <td class="px-6 py-4">
+              <div class="font-semibold text-slate-800">{{ a.patient.get_full_name }}</div>
+              <div class="text-xs text-slate-400">{{ a.patient.unique_id }}</div>
+            </td>
+            <td class="px-4 py-4">
+              <div class="font-medium text-slate-800">{{ a.caregiver_name }}</div>
+              {% if a.contact_number %}<div class="text-xs text-slate-400">{{ a.contact_number }}</div>{% endif %}
+            </td>
+            <td class="px-4 py-4 text-slate-700">{{ a.role_display }}</td>
+            <td class="px-4 py-4 text-slate-600 hidden md:table-cell">{{ a.department_display }}</td>
+            <td class="px-4 py-4 text-slate-600 hidden lg:table-cell">
+              <div>{{ a.duration_display }}</div>
+              <div class="text-xs text-slate-400">{{ a.created_at|date:"M j, Y" }}</div>
+            </td>
+            <td class="px-4 py-4">
+              <span class="text-xs px-2.5 py-1 rounded-full font-semibold
+                {% if a.status == 'active' %}bg-emerald-100 text-emerald-700
+                {% else %}bg-amber-100 text-amber-700{% endif %}">
+                {{ a.get_status_display }}
+              </span>
+            </td>
+            <td class="px-6 py-4">
+              <div class="flex items-center justify-end gap-1 flex-wrap">
+                <a href="{% url 'doctor_hospital_caregiver_detail' a.id %}" title="View"
+                   class="p-2 text-blue-600 hover:bg-blue-50 rounded-lg transition"><i class="fas fa-eye"></i></a>
+                <a href="{% url 'doctor_hospital_caregiver_edit' a.id %}" title="Edit"
+                   class="p-2 text-emerald-600 hover:bg-emerald-50 rounded-lg transition"><i class="fas fa-edit"></i></a>
+                <a href="{% url 'doctor_hospital_caregiver_new' %}?patient_id={{ a.patient.id }}&replace=1" title="Replace"
+                   class="p-2 text-violet-600 hover:bg-violet-50 rounded-lg transition"><i class="fas fa-exchange-alt"></i></a>
+                {% if a.status == 'active' and a.system_assignment %}
+                <button type="button" title="Disconnect Caregiver"
+                        onclick="openDoctorDisconnectModal({{ a.system_assignment.id }}, '{{ a.patient.get_full_name|escapejs }}')"
+                        class="p-2 text-red-600 hover:bg-red-50 rounded-lg transition">
+                  <i class="fas fa-unlink"></i>
+                </button>
+                {% elif a.status == 'active' %}
+                <form method="POST" class="inline"
+                      data-st-confirm="Deactivate caregiver for {{ a.patient.get_full_name }}?"
+                      data-st-confirm-title="Deactivate Caregiver?"
+                      data-st-confirm-variant="warning"
+                      data-st-confirm-ok="Deactivate">
+                  {% csrf_token %}
+                  <input type="hidden" name="assignment_id" value="{{ a.id }}">
+                  <input type="hidden" name="action" value="deactivate">
+                  <button type="submit" title="Deactivate"
+                          class="p-2 text-amber-600 hover:bg-amber-50 rounded-lg transition">
+                    <i class="fas fa-pause-circle"></i>
+                  </button>
+                </form>
+                {% else %}
+                <form method="POST" class="inline">
+                  {% csrf_token %}
+                  <input type="hidden" name="assignment_id" value="{{ a.id }}">
+                  <input type="hidden" name="action" value="reactivate">
+                  <button type="submit" title="Reactivate" class="p-2 text-emerald-600 hover:bg-emerald-50 rounded-lg transition">
+                    <i class="fas fa-play-circle"></i>
+                  </button>
+                </form>
+                {% endif %}
+                <button type="button" title="Remove"
+                        onclick="openRemoveModal({{ a.id }}, '{{ a.patient.get_full_name|escapejs }}')"
+                        class="p-2 text-red-600 hover:bg-red-50 rounded-lg transition">
+                  <i class="fas fa-trash"></i>
+                </button>
+              </div>
+            </td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+    {% else %}
+    <div class="text-center py-14 px-6">
+      <div class="w-14 h-14 bg-teal-50 rounded-2xl flex items-center justify-center mx-auto mb-3">
+        <i class="fas fa-hospital-user text-xl text-teal-400"></i>
+      </div>
+      <h3 class="font-bold text-slate-700 mb-1">No Assignments Yet</h3>
+      <p class="text-sm text-slate-500 mb-5">Assign a clinical caregiver to support a connected patient.</p>
+      <a href="{% url 'doctor_hospital_caregiver_new' %}" class="inline-flex items-center gap-2 px-4 py-2.5 bg-teal-600 text-white rounded-xl font-semibold text-sm hover:bg-teal-700 transition">
+        <i class="fas fa-plus"></i> Assign Caregiver
+      </a>
+    </div>
+    {% endif %}
+  </div>
+</div>
+
+<div id="removeModal" class="fixed inset-0 bg-black/50 z-50 hidden flex items-center justify-center p-4">
+  <div class="bg-white rounded-2xl shadow-2xl w-full max-w-md p-6">
+    <h3 class="font-bold text-slate-800 text-lg mb-2">Remove Caregiver</h3>
+    <p class="text-sm text-slate-600 mb-4">Remove caregiver access for <strong id="removePatientName"></strong>? History will be kept.</p>
+    <form id="removeForm" method="POST" action="{% url 'doctor_assign_caregiver' %}">
+      {% csrf_token %}
+      <input type="hidden" name="action" value="remove">
+      <input type="hidden" name="assignment_id" id="removeAssignmentId">
+      <input type="text" name="removal_reason" placeholder="Reason (optional)"
+             class="w-full px-3 py-2 border border-slate-200 rounded-xl text-sm mb-4">
+      <div class="flex gap-3">
+        <button type="button" onclick="closeRemoveModal()" class="flex-1 px-4 py-2.5 bg-slate-100 text-slate-700 rounded-xl font-semibold text-sm">Cancel</button>
+        <button type="submit" class="flex-1 px-4 py-2.5 bg-red-600 text-white rounded-xl font-semibold text-sm">Remove</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<div id="doctorDisconnectModal" class="fixed inset-0 bg-black/50 z-50 hidden flex items-center justify-center p-4">
+  <div class="bg-white rounded-2xl shadow-2xl w-full max-w-md p-6">
+    <h3 class="font-bold text-slate-800 text-lg mb-1">Disconnect Caregiver?</h3>
+    <p class="text-sm text-slate-500 mb-4">Disconnect caregiver for <strong id="disconnectPatientName"></strong>. Please provide a reason.</p>
+    <form id="doctorDisconnectForm" method="POST">
+      {% csrf_token %}
+      <select name="reason" required class="w-full px-3 py-2 border border-slate-200 rounded-xl text-sm mb-4">
+        <option value="">Select reason...</option>
+        <option value="Treatment completed">Treatment completed</option>
+        <option value="Caregiver unavailable">Caregiver unavailable</option>
+        <option value="Shift transferred">Shift transferred</option>
+        <option value="Hospital reassignment">Hospital reassignment</option>
+        <option value="Patient moved">Patient moved</option>
+        <option value="Other">Other</option>
+      </select>
+      <div class="flex gap-3">
+        <button type="button" onclick="closeDoctorDisconnectModal()" class="flex-1 px-4 py-2.5 bg-slate-100 text-slate-700 rounded-xl font-semibold text-sm">Cancel</button>
+        <button type="submit" class="flex-1 px-4 py-2.5 bg-red-600 text-white rounded-xl font-semibold text-sm">Disconnect</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<script>
+function openRemoveModal(id, name) {
+  document.getElementById('removeAssignmentId').value = id;
+  document.getElementById('removePatientName').textContent = name;
+  document.getElementById('removeModal').classList.remove('hidden');
+}
+function closeRemoveModal() {
+  document.getElementById('removeModal').classList.add('hidden');
+}
+function openDoctorDisconnectModal(assignmentId, name) {
+  document.getElementById('disconnectPatientName').textContent = name;
+  document.getElementById('doctorDisconnectForm').action = `/dashboard/caregiver/disconnect/${assignmentId}/`;
+  document.getElementById('doctorDisconnectModal').classList.remove('hidden');
+}
+function closeDoctorDisconnectModal() {
+  document.getElementById('doctorDisconnectModal').classList.add('hidden');
+}
+</script>
+{% endblock %}

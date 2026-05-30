@@ -1,0 +1,69 @@
+{% extends 'base_dashboard.html' %}
+{% block title %}Earnings{% endblock %}
+{% block page_title %}Earnings Overview{% endblock %}
+{% block page_subtitle %}Online consultation payments received{% endblock %}
+
+{% block content %}
+<div class="space-y-6">
+  <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
+    <div class="bg-white rounded-xl border border-slate-100 p-4 shadow-sm">
+      <div class="text-2xl font-black text-emerald-600">₹{{ summary.today }}</div>
+      <div class="text-xs text-slate-500 mt-1">Today's Earnings</div>
+    </div>
+    <div class="bg-white rounded-xl border border-slate-100 p-4 shadow-sm">
+      <div class="text-2xl font-black text-blue-600">₹{{ summary.week }}</div>
+      <div class="text-xs text-slate-500 mt-1">This Week</div>
+    </div>
+    <div class="bg-white rounded-xl border border-slate-100 p-4 shadow-sm">
+      <div class="text-2xl font-black text-indigo-600">₹{{ summary.month }}</div>
+      <div class="text-xs text-slate-500 mt-1">This Month</div>
+    </div>
+    <div class="bg-white rounded-xl border border-amber-100 p-4 shadow-sm">
+      <div class="text-2xl font-black text-amber-600">₹{{ summary.pending_amount }}</div>
+      <div class="text-xs text-slate-500 mt-1">Pending Payments ({{ summary.pending_count }})</div>
+    </div>
+  </div>
+
+  <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+    <div class="bg-white rounded-xl border border-slate-100 p-5">
+      <h3 class="font-bold text-slate-800 text-sm mb-3">By Consultation Type</h3>
+      <div class="space-y-2 text-sm">
+        <div class="flex justify-between"><span class="text-slate-600">Video Consultations</span><span class="font-bold">₹{{ summary.by_type.video }}</span></div>
+        <div class="flex justify-between"><span class="text-slate-600">Emergency Video</span><span class="font-bold">₹{{ summary.by_type.emergency_video }}</span></div>
+      </div>
+      <p class="text-xs text-slate-400 mt-3">Physical appointments are paid offline at clinic.</p>
+    </div>
+    <div class="bg-white rounded-xl border border-slate-100 p-5">
+      <h3 class="font-bold text-slate-800 text-sm mb-3">Payment Stats</h3>
+      <div class="space-y-2 text-sm">
+        <div class="flex justify-between"><span class="text-slate-600">Completed Payments</span><span class="font-bold text-emerald-600">{{ summary.paid_count }}</span></div>
+        <div class="flex justify-between"><span class="text-slate-600">Pending</span><span class="font-bold text-amber-600">{{ summary.pending_count }}</span></div>
+        <div class="flex justify-between"><span class="text-slate-600">Failed</span><span class="font-bold text-red-600">{{ summary.failed_count }}</span></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="bg-white rounded-xl border border-slate-100 overflow-hidden">
+    <div class="px-5 py-3 border-b border-slate-100 flex justify-between items-center">
+      <h3 class="font-bold text-slate-800 text-sm">Recent Payments</h3>
+      <a href="{% url 'payment_history' %}" class="text-xs text-blue-600 font-semibold">View All →</a>
+    </div>
+    <div class="divide-y divide-slate-50">
+      {% for p in recent_payments %}
+      <div class="px-5 py-3 flex justify-between items-center text-sm">
+        <div>
+          <div class="font-semibold text-slate-800">{{ p.patient.get_full_name }}</div>
+          <div class="text-xs text-slate-500">{{ p.appointment_type_display }} · {{ p.created_at|date:"M j" }}</div>
+        </div>
+        <div class="text-right">
+          <div class="font-bold">₹{{ p.amount }}</div>
+          <span class="text-[10px] font-semibold {% if p.payment_status == 'paid' %}text-emerald-600{% else %}text-amber-600{% endif %}">{{ p.get_payment_status_display }}</span>
+        </div>
+      </div>
+      {% empty %}
+      <p class="p-6 text-center text-slate-400 text-sm">No payments yet.</p>
+      {% endfor %}
+    </div>
+  </div>
+</div>
+{% endblock %}

@@ -1,0 +1,184 @@
+{% extends 'base_dashboard.html' %}
+{% block title %}{{ medicine.name }}{% endblock %}
+{% block page_title %}{{ medicine.name }}{% endblock %}
+{% block page_subtitle %}Medicine Details & Adherence History{% endblock %}
+
+{% block content %}
+{% load static %}
+<form style="display:none">{% csrf_token %}</form>
+
+<div class="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-6">
+  <!-- Medicine Info Card -->
+  <div class="bg-white rounded-2xl shadow-sm border border-slate-100 p-6">
+    <div class="flex items-center gap-3 mb-5">
+      <div class="w-14 h-14 rounded-2xl flex items-center justify-center flex-shrink-0
+        {% if medicine.color == 'blue' %}bg-blue-100 text-blue-600
+        {% elif medicine.color == 'green' %}bg-emerald-100 text-emerald-600
+        {% elif medicine.color == 'red' %}bg-red-100 text-red-600
+        {% elif medicine.color == 'purple' %}bg-violet-100 text-violet-600
+        {% elif medicine.color == 'orange' %}bg-orange-100 text-orange-600
+        {% else %}bg-amber-100 text-amber-600{% endif %}">
+        <i class="fas fa-capsules text-2xl"></i>
+      </div>
+      <div>
+        <div class="font-bold text-slate-800 text-lg">{{ medicine.name }}</div>
+        <div class="text-sm text-slate-500">{{ medicine.dosage }}</div>
+      </div>
+    </div>
+
+    <div class="space-y-3 text-sm">
+      <div class="flex justify-between py-2 border-b border-slate-100">
+        <span class="text-slate-500">Frequency</span>
+        <span class="font-semibold text-slate-700">{{ medicine.get_frequency_display }}</span>
+      </div>
+      <div class="flex justify-between py-2 border-b border-slate-100">
+        <span class="text-slate-500">Max Daily Doses</span>
+        <span class="font-semibold text-slate-700">{{ medicine.max_daily_doses }}</span>
+      </div>
+      <div class="flex justify-between py-2 border-b border-slate-100">
+        <span class="text-slate-500">Start Date</span>
+        <span class="font-semibold text-slate-700">{{ medicine.start_date|date:"M j, Y" }}</span>
+      </div>
+      {% if medicine.end_date %}
+      <div class="flex justify-between py-2 border-b border-slate-100">
+        <span class="text-slate-500">End Date</span>
+        <span class="font-semibold text-slate-700">{{ medicine.end_date|date:"M j, Y" }}</span>
+      </div>
+      {% endif %}
+      <div class="flex justify-between py-2 border-b border-slate-100">
+        <span class="text-slate-500">Stock Left</span>
+        <span class="font-semibold {% if medicine.is_critical_stock %}text-red-600{% elif medicine.is_low_stock %}text-amber-600{% else %}text-emerald-600{% endif %}">
+          {{ medicine.stock_quantity }} doses
+          {% if medicine.is_critical_stock %} 🚨{% elif medicine.is_low_stock %} ⚠️{% endif %}
+        </span>
+      </div>
+      {% if medicine.expiry_date %}
+      <div class="flex justify-between py-2 border-b border-slate-100">
+        <span class="text-slate-500">Expiry</span>
+        <span class="font-semibold {% if medicine.is_expired %}text-red-600{% else %}text-slate-700{% endif %}">
+          {{ medicine.expiry_date|date:"M j, Y" }}{% if medicine.is_expired %} (Expired!){% endif %}
+        </span>
+      </div>
+      {% endif %}
+      {% if medicine.prescribed_by %}
+      <div class="flex justify-between py-2">
+        <span class="text-slate-500">Prescribed by</span>
+        <span class="font-semibold text-blue-600">Dr. {{ medicine.prescribed_by.get_full_name }}</span>
+      </div>
+      {% endif %}
+    </div>
+
+    {% if medicine.instructions %}
+    <div class="mt-4 p-3 bg-blue-50 rounded-xl">
+      <div class="text-xs font-semibold text-blue-600 mb-1">Instructions</div>
+      <p class="text-sm text-slate-700">{{ medicine.instructions }}</p>
+    </div>
+    {% endif %}
+
+    {% if medicine.time_slots %}
+    <div class="mt-4">
+      <div class="text-xs font-semibold text-slate-500 mb-2">Schedule Times</div>
+      <div class="flex flex-wrap gap-2">
+        {% for slot in medicine.time_slots %}
+        <span class="text-xs bg-slate-100 text-slate-600 px-3 py-1.5 rounded-lg"><i class="fas fa-clock mr-1"></i>{{ slot }}</span>
+        {% endfor %}
+      </div>
+    </div>
+    {% endif %}
+  </div>
+
+  <!-- Adherence Stats -->
+  <div class="lg:col-span-2 space-y-4">
+    <!-- Quick Stats -->
+    <div class="grid grid-cols-3 gap-3">
+      <div class="bg-emerald-50 border border-emerald-200 rounded-2xl p-4 text-center">
+        <div class="text-3xl font-black text-emerald-700">{{ taken }}</div>
+        <div class="text-xs text-emerald-600 mt-1">Taken (30 days)</div>
+      </div>
+      <div class="bg-red-50 border border-red-200 rounded-2xl p-4 text-center">
+        <div class="text-3xl font-black text-red-700">{{ missed }}</div>
+        <div class="text-xs text-red-600 mt-1">Missed (30 days)</div>
+      </div>
+      <div class="bg-blue-50 border border-blue-200 rounded-2xl p-4 text-center">
+        <div class="text-3xl font-black text-blue-700">{{ adherence }}%</div>
+        <div class="text-xs text-blue-600 mt-1">Adherence Rate</div>
+      </div>
+    </div>
+
+    <!-- Completion Progress (for course-based meds) -->
+    {% if medicine.days_remaining is not None %}
+    <div class="bg-white rounded-2xl shadow-sm border border-slate-100 p-4">
+      <div class="flex justify-between text-sm mb-2">
+        <span class="font-semibold text-slate-700">Treatment Progress</span>
+        <span class="text-slate-500">{{ medicine.days_remaining }} days remaining</span>
+      </div>
+      <div class="w-full bg-slate-100 rounded-full h-3">
+        <div class="h-3 rounded-full bg-violet-500 transition-all" style="width:{{ medicine.completion_pct }}%"></div>
+      </div>
+      <div class="text-xs text-slate-400 mt-1">{{ medicine.completion_pct }}% complete</div>
+    </div>
+    {% endif %}
+
+    <!-- Weekly Chart -->
+    <div class="bg-white rounded-2xl shadow-sm border border-slate-100 p-5">
+      <h3 class="font-bold text-slate-800 mb-3 text-sm flex items-center gap-2">
+        <i class="fas fa-chart-bar text-blue-500"></i> 7-Day Adherence
+      </h3>
+      <canvas id="weeklyMedChart" height="150"></canvas>
+    </div>
+  </div>
+</div>
+
+<!-- Intake Log -->
+<div class="bg-white rounded-2xl shadow-sm border border-slate-100 p-6">
+  <h3 class="font-bold text-slate-800 mb-4 flex items-center gap-2">
+    <i class="fas fa-history text-slate-400"></i> Recent Intake History
+  </h3>
+  {% if logs %}
+  <div class="space-y-2">
+    {% for log in logs %}
+    <div class="flex items-center gap-4 p-3 rounded-xl border border-slate-100 hover:bg-slate-50 transition">
+      <div class="w-9 h-9 rounded-xl flex items-center justify-center flex-shrink-0
+        {% if log.status == 'taken' %}bg-emerald-100{% elif log.status == 'missed' %}bg-red-100{% else %}bg-slate-100{% endif %}">
+        <i class="fas {% if log.status == 'taken' %}fa-check text-emerald-600{% elif log.status == 'missed' %}fa-times text-red-600{% else %}fa-forward text-slate-400{% endif %} text-sm"></i>
+      </div>
+      <div class="flex-1">
+        <div class="text-sm font-semibold text-slate-700 capitalize">{{ log.status }}</div>
+        <div class="text-xs text-slate-400">Scheduled: {{ log.scheduled_time|date:"M j, Y g:i A" }}</div>
+        {% if log.taken_at %}<div class="text-xs text-emerald-600">Taken at: {{ log.taken_at|date:"g:i A" }}</div>{% endif %}
+      </div>
+      <span class="text-xs px-2 py-1 rounded-full font-semibold
+        {% if log.status == 'taken' %}bg-emerald-100 text-emerald-700
+        {% elif log.status == 'missed' %}bg-red-100 text-red-600
+        {% else %}bg-slate-100 text-slate-600{% endif %}">{{ log.get_status_display }}</span>
+    </div>
+    {% endfor %}
+  </div>
+  {% else %}
+  <div class="text-center py-8 text-slate-400">
+    <i class="fas fa-history text-3xl mb-2 opacity-30 block"></i>
+    <p class="text-sm">No intake history yet</p>
+  </div>
+  {% endif %}
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script>
+const chartData = {{ chart_data|safe }};
+new Chart(document.getElementById('weeklyMedChart'), {
+  type: 'bar',
+  data: {
+    labels: chartData.map(d => d.day),
+    datasets: [
+      { label: 'Taken', data: chartData.map(d => d.taken), backgroundColor: '#10b981', borderRadius: 5 },
+      { label: 'Missed', data: chartData.map(d => d.missed), backgroundColor: '#ef4444', borderRadius: 5 },
+    ]
+  },
+  options: {
+    responsive: true,
+    plugins: { legend: { position: 'top' } },
+    scales: { x: { stacked: true }, y: { stacked: true, beginAtZero: true, ticks: { stepSize: 1 } } }
+  }
+});
+</script>
+{% endblock %}

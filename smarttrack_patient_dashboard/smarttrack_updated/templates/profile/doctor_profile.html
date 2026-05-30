@@ -1,0 +1,353 @@
+{% extends 'base.html' %}
+{% block title %}Doctor Profile Setup – SmartTrack{% endblock %}
+{% block body %}
+{% load static %}
+<div class="min-h-screen bg-gradient-to-br from-slate-900 via-blue-950 to-slate-900 px-4 py-8">
+  <div class="max-w-3xl mx-auto">
+
+    <div class="text-center mb-8">
+      <div class="w-16 h-16 bg-gradient-to-br from-blue-500 to-violet-600 rounded-2xl flex items-center justify-center mx-auto mb-4 shadow-xl">
+        <i class="fas fa-user-md text-white text-2xl"></i>
+      </div>
+      <h1 class="text-3xl font-bold text-white">Complete Doctor Profile</h1>
+      <p class="text-slate-400 mt-1">Set up your professional profile on SmartTrack</p>
+    </div>
+
+    <!-- Step Indicator -->
+    <div class="flex items-center justify-center gap-2 mb-8">
+      <div class="flex items-center gap-2">
+        <div class="w-8 h-8 rounded-full bg-blue-500 text-white flex items-center justify-center font-bold text-sm" id="step-circle-1">1</div>
+        <span class="text-white text-sm font-medium hidden md:block">Personal Info</span>
+      </div>
+      <div class="w-8 h-0.5 bg-slate-600"></div>
+      <div class="flex items-center gap-2">
+        <div class="w-8 h-8 rounded-full bg-slate-700 text-slate-400 flex items-center justify-center font-bold text-sm" id="step-circle-2">2</div>
+        <span class="text-slate-400 text-sm font-medium hidden md:block" id="step-label-2">Professional</span>
+      </div>
+      <div class="w-8 h-0.5 bg-slate-600"></div>
+      <div class="flex items-center gap-2">
+        <div class="w-8 h-8 rounded-full bg-slate-700 text-slate-400 flex items-center justify-center font-bold text-sm" id="step-circle-3">3</div>
+        <span class="text-slate-400 text-sm font-medium hidden md:block" id="step-label-3">Hospital & Settings</span>
+      </div>
+    </div>
+
+    {% if messages %}
+    <div class="mb-5 space-y-2">
+      {% for m in messages %}
+      <div class="p-3 rounded-xl flex items-center gap-2 {% if m.tags == 'error' %}bg-red-50 text-red-700{% else %}bg-emerald-50 text-emerald-700{% endif %} text-sm">
+        {{ m }}
+      </div>
+      {% endfor %}
+    </div>
+    {% endif %}
+
+    <form method="POST" enctype="multipart/form-data" id="doctorProfileForm">
+      {% csrf_token %}
+
+      <!-- Step 1: Personal Information -->
+      <div id="step-1" class="bg-white rounded-3xl shadow-2xl overflow-hidden">
+        <div class="bg-gradient-to-r from-blue-600 to-violet-600 px-8 py-5">
+          <div class="flex items-center gap-3">
+            <div class="w-10 h-10 bg-white/20 rounded-xl flex items-center justify-center">
+              <i class="fas fa-user text-white text-lg"></i>
+            </div>
+            <div>
+              <h2 class="text-xl font-bold text-white">Personal Information</h2>
+              <p class="text-blue-100 text-sm">Step 1 of 3 – Basic personal details</p>
+            </div>
+          </div>
+        </div>
+        <div class="p-8 space-y-6">
+          <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div>
+              <label class="block text-sm font-medium text-slate-700 mb-1.5">Full Name *</label>
+              <input type="text" name="full_name" value="{{ user.get_full_name }}" required
+                class="w-full px-4 py-3 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 bg-slate-50 text-sm">
+            </div>
+            <div>
+              <label class="block text-sm font-medium text-slate-700 mb-1.5">Email</label>
+              <input type="email" value="{{ user.email }}" readonly
+                class="w-full px-4 py-3 border border-slate-200 rounded-xl bg-slate-100 text-slate-500 text-sm cursor-not-allowed">
+            </div>
+            <div>
+              <label class="block text-sm font-medium text-slate-700 mb-1.5">Phone Number</label>
+              <input type="tel" name="phone" value="{{ user.phone }}"
+                class="w-full px-4 py-3 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 bg-slate-50 text-sm">
+            </div>
+            <div>
+              <label class="block text-sm font-medium text-slate-700 mb-1.5">Date of Birth</label>
+              <input type="date" name="date_of_birth" value="{{ profile.date_of_birth|default:'' }}"
+                onchange="calcDocAge(this.value)"
+                class="w-full px-4 py-3 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 bg-slate-50 text-sm">
+            </div>
+            <div>
+              <label class="block text-sm font-medium text-slate-700 mb-1.5">Age</label>
+              <input type="text" id="docAgeDisplay" readonly placeholder="Select date of birth"
+                class="w-full px-4 py-3 border border-slate-200 rounded-xl bg-slate-100 text-slate-600 text-sm cursor-not-allowed">
+            </div>
+            <div>
+              <label class="block text-sm font-medium text-slate-700 mb-1.5">Gender</label>
+              <select name="gender" class="w-full px-4 py-3 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 bg-slate-50 text-sm">
+                <option value="">Select</option>
+                <option value="male" {% if profile.gender == 'male' %}selected{% endif %}>Male</option>
+                <option value="female" {% if profile.gender == 'female' %}selected{% endif %}>Female</option>
+                <option value="other" {% if profile.gender == 'other' %}selected{% endif %}>Other</option>
+              </select>
+            </div>
+          </div>
+          <!-- Address -->
+          <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div class="md:col-span-2">
+              <label class="block text-sm font-medium text-slate-700 mb-1.5">Full Address</label>
+              <textarea name="address" rows="2" class="w-full px-4 py-3 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 bg-slate-50 text-sm resize-none">{{ profile.address }}</textarea>
+            </div>
+            <div><label class="block text-sm font-medium text-slate-700 mb-1.5">City</label>
+              <input type="text" name="city" value="{{ profile.city|default:'' }}" class="w-full px-4 py-3 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 bg-slate-50 text-sm"></div>
+            <div><label class="block text-sm font-medium text-slate-700 mb-1.5">State</label>
+              <input type="text" name="state" value="{{ profile.state|default:'' }}" class="w-full px-4 py-3 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 bg-slate-50 text-sm"></div>
+            <div><label class="block text-sm font-medium text-slate-700 mb-1.5">ZIP / Pincode</label>
+              <input type="text" name="pincode" value="{{ profile.pincode|default:'' }}" class="w-full px-4 py-3 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 bg-slate-50 text-sm"></div>
+            <div><label class="block text-sm font-medium text-slate-700 mb-1.5">Country</label>
+              <input type="text" name="country" value="{{ profile.country|default:'India' }}" class="w-full px-4 py-3 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 bg-slate-50 text-sm"></div>
+          </div>
+          <!-- Profile Photo -->
+          <div class="flex items-center gap-5">
+            <div class="w-20 h-20 rounded-2xl bg-blue-100 flex items-center justify-center overflow-hidden border-2 border-blue-200">
+              {% if profile.profile_photo %}<img src="{{ profile.profile_photo.url }}" class="w-full h-full object-cover" id="doctorPhotoPreview">
+              {% else %}<i class="fas fa-user-md text-blue-400 text-3xl" id="doctorPhotoIcon"></i>
+              <img src="" class="w-full h-full object-cover hidden" id="doctorPhotoPreview">{% endif %}
+            </div>
+            <div>
+              <label class="cursor-pointer px-4 py-2.5 bg-blue-600 text-white rounded-xl text-sm font-semibold hover:bg-blue-700 transition inline-flex items-center gap-2">
+                <i class="fas fa-upload"></i> Upload Photo
+                <input type="file" name="profile_photo" accept="image/*" class="sr-only" onchange="previewDocPhoto(this)">
+              </label>
+            </div>
+          </div>
+
+          <div class="flex justify-end pt-4 border-t border-slate-100">
+            <button type="button" onclick="goToStep(2)"
+              class="px-8 py-3 bg-gradient-to-r from-blue-500 to-violet-600 text-white rounded-xl font-bold hover:opacity-90 transition flex items-center gap-2">
+              Next: Professional Details <i class="fas fa-arrow-right"></i>
+            </button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Step 2: Professional Details -->
+      <div id="step-2" class="hidden bg-white rounded-3xl shadow-2xl overflow-hidden">
+        <div class="bg-gradient-to-r from-violet-600 to-purple-700 px-8 py-5">
+          <div class="flex items-center gap-3">
+            <div class="w-10 h-10 bg-white/20 rounded-xl flex items-center justify-center">
+              <i class="fas fa-stethoscope text-white text-lg"></i>
+            </div>
+            <div>
+              <h2 class="text-xl font-bold text-white">Professional Details</h2>
+              <p class="text-violet-100 text-sm">Step 2 of 3 – Medical credentials and specialization</p>
+            </div>
+          </div>
+        </div>
+        <div class="p-8 space-y-4">
+          <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div>
+              <label class="block text-sm font-medium text-slate-700 mb-1.5">Medical License Number *</label>
+              <input type="text" name="license_number" value="{{ profile.license_number }}" required
+                class="w-full px-4 py-3 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-violet-500 bg-slate-50 text-sm">
+            </div>
+            <div>
+              <label class="block text-sm font-medium text-slate-700 mb-1.5">Specialization *</label>
+              <select name="specialty" required class="w-full px-4 py-3 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-violet-500 bg-slate-50 text-sm">
+                <option value="">Select specialization</option>
+                {% for val, label in profile.SPECIALIZATION_CHOICES %}
+                <option value="{{ val }}" {% if profile.specialty == val %}selected{% endif %}>{{ label }}</option>
+                {% endfor %}
+              </select>
+            </div>
+            <div>
+              <label class="block text-sm font-medium text-slate-700 mb-1.5">Years of Experience</label>
+              <input type="number" name="years_of_experience" value="{{ profile.years_of_experience|default:'' }}" min="0" max="60"
+                class="w-full px-4 py-3 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-violet-500 bg-slate-50 text-sm">
+            </div>
+            <div class="md:col-span-2 mt-2">
+              <div class="p-5 bg-gradient-to-br from-emerald-50 to-teal-50 border border-emerald-100 rounded-2xl">
+                <h3 class="font-bold text-slate-800 mb-1 flex items-center gap-2">
+                  <i class="fas fa-rupee-sign text-emerald-600"></i> Consultation Charges
+                </h3>
+                <p class="text-xs text-slate-500 mb-4">Fees apply automatically when patients book or complete consultations. Edit anytime.</p>
+                <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                  <div>
+                    <label class="block text-sm font-medium text-slate-700 mb-1.5">In-Person Fee (₹)</label>
+                    <input type="number" name="consultation_fee" value="{{ profile.consultation_fee|default:'' }}" min="0" step="1"
+                      class="w-full px-4 py-3 border border-emerald-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-emerald-500 bg-white text-sm"
+                      placeholder="500">
+                    <p class="text-xs text-slate-400 mt-1">Paid offline at clinic</p>
+                  </div>
+                  <div>
+                    <label class="block text-sm font-medium text-slate-700 mb-1.5">Video Consultation Fee (₹)</label>
+                    <input type="number" name="video_consultation_fee" value="{{ profile.video_consultation_fee|default:'' }}" min="0" step="1"
+                      class="w-full px-4 py-3 border border-emerald-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-emerald-500 bg-white text-sm"
+                      placeholder="600">
+                    <p class="text-xs text-slate-400 mt-1">Charged after video call ends</p>
+                  </div>
+                  <div>
+                    <label class="block text-sm font-medium text-slate-700 mb-1.5">Emergency Consultation Fee (₹)</label>
+                    <input type="number" name="emergency_video_fee" value="{{ profile.emergency_video_fee|default:'' }}" min="0" step="1"
+                      class="w-full px-4 py-3 border border-emerald-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-emerald-500 bg-white text-sm"
+                      placeholder="1000">
+                    <p class="text-xs text-slate-400 mt-1">Emergency video consultations</p>
+                  </div>
+                </div>
+              </div>
+            </div>
+            <div class="md:col-span-2">
+              <label class="block text-sm font-medium text-slate-700 mb-1.5">Professional Bio / Description</label>
+              <textarea name="bio" rows="3" placeholder="Describe your expertise and experience..."
+                class="w-full px-4 py-3 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-violet-500 bg-slate-50 text-sm resize-none">{{ profile.bio }}</textarea>
+            </div>
+          </div>
+
+          <div class="flex justify-between pt-4 border-t border-slate-100">
+            <button type="button" onclick="goToStep(1)"
+              class="px-6 py-3 bg-slate-100 text-slate-700 rounded-xl font-semibold hover:bg-slate-200 transition flex items-center gap-2">
+              <i class="fas fa-arrow-left"></i> Back
+            </button>
+            <button type="button" onclick="goToStep(3)" class="px-8 py-3 bg-gradient-to-r from-violet-500 to-purple-700 text-white rounded-xl font-bold hover:opacity-90 transition flex items-center gap-2">
+              Next: Hospital & Settings <i class="fas fa-arrow-right"></i>
+            </button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Step 3: Hospital & Settings -->
+      <div id="step-3" class="hidden bg-white rounded-3xl shadow-2xl overflow-hidden">
+        <div class="bg-gradient-to-r from-emerald-600 to-teal-700 px-8 py-5">
+          <div class="flex items-center gap-3">
+            <div class="w-10 h-10 bg-white/20 rounded-xl flex items-center justify-center">
+              <i class="fas fa-hospital text-white text-lg"></i>
+            </div>
+            <div>
+              <h2 class="text-xl font-bold text-white">Hospital & Settings</h2>
+              <p class="text-emerald-100 text-sm">Step 3 of 3 – Hospital details and preferences</p>
+            </div>
+          </div>
+        </div>
+        <div class="p-8 space-y-6">
+          <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div>
+              <label class="block text-sm font-medium text-slate-700 mb-1.5">Hospital / Clinic Name</label>
+              <input type="text" name="hospital_name" value="{{ profile.hospital_name }}"
+                class="w-full px-4 py-3 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-emerald-500 bg-slate-50 text-sm">
+            </div>
+            <div>
+              <label class="block text-sm font-medium text-slate-700 mb-1.5">Hospital Phone</label>
+              <input type="tel" name="hospital_phone" value="{{ profile.hospital_phone }}"
+                class="w-full px-4 py-3 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-emerald-500 bg-slate-50 text-sm">
+            </div>
+            <div class="md:col-span-2">
+              <label class="block text-sm font-medium text-slate-700 mb-1.5">Hospital Address</label>
+              <textarea name="hospital_address" rows="2" class="w-full px-4 py-3 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-emerald-500 bg-slate-50 text-sm resize-none">{{ profile.hospital_address }}</textarea>
+            </div>
+            <div>
+              <label class="block text-sm font-medium text-slate-700 mb-1.5">LinkedIn URL (Optional)</label>
+              <input type="url" name="linkedin" value="{{ profile.linkedin }}" placeholder="https://linkedin.com/in/..."
+                class="w-full px-4 py-3 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-emerald-500 bg-slate-50 text-sm">
+            </div>
+            <div>
+              <label class="block text-sm font-medium text-slate-700 mb-1.5">Consultation Hours</label>
+              <input type="text" name="consultation_hours" value="{{ profile.consultation_hours }}" placeholder="e.g. Mon-Fri 9AM-5PM"
+                class="w-full px-4 py-3 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-emerald-500 bg-slate-50 text-sm">
+            </div>
+            <div>
+              <label class="block text-sm font-medium text-slate-700 mb-1.5">Max Patients Per Day</label>
+              <input type="number" name="max_patients_per_day" value="{{ profile.max_patients_per_day }}" min="1" max="100"
+                class="w-full px-4 py-3 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-emerald-500 bg-slate-50 text-sm">
+            </div>
+          </div>
+
+          <!-- Consultation Mode -->
+          <div>
+            <label class="block text-sm font-medium text-slate-700 mb-3">Consultation Mode</label>
+            <div class="grid grid-cols-3 gap-3">
+              {% for val, label in profile.CONSULTATION_MODE_CHOICES %}
+              <label class="cursor-pointer">
+                <input type="radio" name="consultation_mode" value="{{ val }}" class="sr-only peer"
+                  {% if profile.consultation_mode == val or not profile.consultation_mode and val == 'both' %}checked{% endif %}>
+                <div class="p-3 border-2 border-slate-200 rounded-xl text-center peer-checked:border-emerald-500 peer-checked:bg-emerald-50 transition text-sm">
+                  <i class="fas {% if val == 'in_person' %}fa-user-md{% elif val == 'video' %}fa-video{% else %}fa-check-double{% endif %} block mb-1 text-lg"></i>
+                  {{ label }}
+                </div>
+              </label>
+              {% endfor %}
+            </div>
+          </div>
+
+          <!-- License Document Upload -->
+          <div>
+            <label class="block text-sm font-medium text-slate-700 mb-2">Medical License Upload (PDF/JPG/PNG)</label>
+            <label class="cursor-pointer border-2 border-dashed border-slate-300 rounded-xl p-6 flex flex-col items-center hover:border-emerald-400 transition">
+              <i class="fas fa-file-upload text-slate-400 text-3xl mb-2"></i>
+              <span class="text-sm text-slate-600">Click to upload license document</span>
+              <span class="text-xs text-slate-400 mt-1">PDF, JPG, PNG up to 10MB</span>
+              <input type="file" name="license_document" accept=".pdf,.jpg,.jpeg,.png" class="sr-only">
+            </label>
+          </div>
+
+          <!-- Notifications -->
+          <div class="space-y-3">
+            <label class="flex items-center gap-3 p-4 rounded-xl border border-slate-200 hover:bg-slate-50 cursor-pointer">
+              <input type="checkbox" name="notification_alerts" value="1" {% if profile.notification_alerts %}checked{% endif %}
+                class="w-5 h-5 rounded text-emerald-500">
+              <div>
+                <div class="font-semibold text-sm text-slate-800">Enable Notification Preferences</div>
+                <div class="text-xs text-slate-500">Receive real-time alerts for patient activities</div>
+              </div>
+            </label>
+          </div>
+
+          <div class="flex justify-between pt-4 border-t border-slate-100">
+            <button type="button" onclick="goToStep(2)" class="px-6 py-3 bg-slate-100 text-slate-700 rounded-xl font-semibold hover:bg-slate-200 transition flex items-center gap-2">
+              <i class="fas fa-arrow-left"></i> Back
+            </button>
+            <button type="submit" class="px-8 py-3 bg-gradient-to-r from-emerald-500 to-teal-600 text-white rounded-xl font-bold hover:opacity-90 transition flex items-center gap-2">
+              <i class="fas fa-check"></i> Save Doctor Profile
+            </button>
+          </div>
+        </div>
+      </div>
+    </form>
+  </div>
+</div>
+<script>
+let currentStep = 1;
+function goToStep(n) {
+  document.getElementById(`step-${currentStep}`).classList.add('hidden');
+  document.getElementById(`step-${n}`).classList.remove('hidden');
+  for (let i = 1; i <= 3; i++) {
+    const c = document.getElementById(`step-circle-${i}`);
+    if (i < n) { c.className = 'w-8 h-8 rounded-full bg-emerald-500 text-white flex items-center justify-center font-bold text-sm'; c.innerHTML = '<i class="fas fa-check text-xs"></i>'; }
+    else if (i === n) { c.className = 'w-8 h-8 rounded-full bg-blue-500 text-white flex items-center justify-center font-bold text-sm'; }
+  }
+  currentStep = n; window.scrollTo(0, 0);
+}
+function calcDocAge(dob) {
+  if (!dob) return;
+  const bd = new Date(dob), today = new Date();
+  let age = today.getFullYear() - bd.getFullYear();
+  if (today.getMonth() - bd.getMonth() < 0 || (today.getMonth() === bd.getMonth() && today.getDate() < bd.getDate())) age--;
+  document.getElementById('docAgeDisplay').value = age + ' years';
+}
+function previewDocPhoto(input) {
+  if (input.files && input.files[0]) {
+    const reader = new FileReader();
+    reader.onload = e => {
+      const p = document.getElementById('doctorPhotoPreview');
+      const i = document.getElementById('doctorPhotoIcon');
+      p.src = e.target.result; p.classList.remove('hidden');
+      if (i) i.classList.add('hidden');
+    };
+    reader.readAsDataURL(input.files[0]);
+  }
+}
+{% if profile.date_of_birth %}calcDocAge('{{ profile.date_of_birth }}');{% endif %}
+</script>
+{% endblock %}

@@ -1,0 +1,46 @@
+{% extends 'system_admin/base.html' %}
+{% block page_title %}{{ page_title }}{% endblock %}
+{% block page_subtitle %}{% if editing %}Update doctor profile{% else %}Register a new doctor{% endif %}{% endblock %}
+{% block content %}
+<div class="admin-form-panel animate-fade-in">
+  <div class="admin-panel">
+    <div class="admin-panel-header">
+      <h3 class="font-bold text-slate-800 text-sm">{% if editing %}Edit Doctor{% else %}Add Doctor{% endif %}</h3>
+      {% if editing %}<a href="{% url 'system_admin_doctor_detail' doctor.id %}" class="text-sm text-slate-500 hover:text-slate-700"><i class="fas fa-arrow-left mr-1"></i> Cancel</a>{% endif %}
+    </div>
+    <form method="POST" enctype="multipart/form-data" class="admin-panel-body space-y-5">{% csrf_token %}
+      <div class="admin-form-grid">
+        <div><label class="admin-form-label">First Name</label><input name="first_name" value="{{ doctor.first_name|default:'' }}" required class="admin-input w-full"></div>
+        <div><label class="admin-form-label">Last Name</label><input name="last_name" value="{{ doctor.last_name|default:'' }}" required class="admin-input w-full"></div>
+        <div><label class="admin-form-label">Email</label><input name="email" type="email" value="{{ doctor.email|default:'' }}" required class="admin-input w-full"></div>
+        <div><label class="admin-form-label">Phone</label><input name="phone" value="{{ doctor.phone|default:'' }}" class="admin-input w-full"></div>
+        {% if not editing %}<div><label class="admin-form-label">Password</label><input name="password" type="password" class="admin-input w-full" placeholder="Default: SmartTrack@123"></div>{% endif %}
+        <div><label class="admin-form-label">Specialization</label><input name="specialization" value="{% if profile %}{{ profile.specialty }}{% endif %}" class="admin-input w-full"></div>
+        <div><label class="admin-form-label">Hospital</label><input name="hospital" value="{% if profile %}{{ profile.hospital_name }}{% endif %}" class="admin-input w-full"></div>
+        <div><label class="admin-form-label">License Number</label><input name="license_number" value="{% if profile %}{{ profile.license_number }}{% endif %}" class="admin-input w-full"></div>
+        <div>
+          <label class="admin-form-label">Consultation Mode</label>
+          <select name="consultation_mode" class="admin-input w-full">
+            <option value="both" {% if profile and profile.consultation_mode == 'both' %}selected{% endif %}>Both</option>
+            <option value="in_person" {% if profile and profile.consultation_mode == 'in_person' %}selected{% endif %}>In-Person</option>
+            <option value="video" {% if profile and profile.consultation_mode == 'video' %}selected{% endif %}>Video</option>
+          </select>
+        </div>
+        <div><label class="admin-form-label">Profile Photo</label><input name="profile_photo" type="file" accept="image/*" class="admin-input w-full text-sm"></div>
+        <div class="col-span-2"><label class="admin-form-label">Bio</label><textarea name="bio" rows="3" class="admin-input w-full resize-none">{% if profile %}{{ profile.bio }}{% endif %}</textarea></div>
+        <div class="col-span-2 flex flex-wrap gap-6 pt-1">
+          <label class="flex items-center gap-2 text-sm font-medium text-slate-700">
+            <input type="checkbox" name="is_verified" {% if profile and profile.available_for_consultation %}checked{% endif %}> Available for Consultation
+          </label>
+          {% if editing %}
+          <label class="flex items-center gap-2 text-sm font-medium text-slate-700">
+            <input type="checkbox" name="is_active" {% if doctor.is_active %}checked{% endif %}> Account Active
+          </label>
+          {% endif %}
+        </div>
+      </div>
+      <button type="submit" class="admin-btn-primary"><i class="fas fa-save mr-1"></i> {% if editing %}Save Changes{% else %}Create Doctor{% endif %}</button>
+    </form>
+  </div>
+</div>
+{% endblock %}

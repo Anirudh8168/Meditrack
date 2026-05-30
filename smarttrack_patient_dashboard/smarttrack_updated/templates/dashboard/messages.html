@@ -1,0 +1,305 @@
+{% extends 'base_dashboard.html' %}
+{% block title %}Messages{% endblock %}
+{% block page_title %}Messages{% endblock %}
+{% block page_subtitle %}Secure chat with your healthcare team{% endblock %}
+
+{% block content %}
+<form style="display:none">{% csrf_token %}</form>
+<div class="flex gap-4 h-[calc(100vh-180px)] min-h-[500px]">
+
+  <!-- Contacts Sidebar -->
+  <div class="w-72 flex-shrink-0 bg-white rounded-2xl shadow-sm border border-slate-100 flex flex-col overflow-hidden">
+    <div class="p-4 border-b border-slate-100">
+      <h3 class="font-bold text-slate-800 text-sm">Conversations</h3>
+      {% if total_unread > 0 %}
+      <span class="text-xs bg-red-500 text-white px-2 py-0.5 rounded-full ml-2">{{ total_unread }} unread</span>
+      {% endif %}
+    </div>
+    <div class="flex-1 overflow-y-auto">
+      {% if contacts %}
+        {% for item in contacts %}
+        <a href="/messages/?with={{ item.user.id }}"
+           class="flex items-center gap-3 p-3 hover:bg-slate-50 transition border-b border-slate-50
+             {% if selected_user and selected_user.id == item.user.id %}bg-blue-50 border-l-4 border-l-blue-500{% endif %}">
+          <!-- Avatar with photo or initials -->
+          <div class="relative flex-shrink-0">
+            {% if item.photo_url %}
+            <img src="{{ item.photo_url }}" alt="{{ item.user.get_full_name }}"
+              class="w-11 h-11 rounded-xl object-cover border-2 border-white shadow">
+            {% else %}
+            <div class="w-11 h-11 {% if item.user.role == 'doctor' %}bg-gradient-to-br from-blue-500 to-violet-600{% else %}bg-gradient-to-br from-emerald-500 to-teal-600{% endif %} rounded-xl flex items-center justify-center text-white font-bold text-sm">
+              {{ item.user.first_name|first }}{{ item.user.last_name|first }}
+            </div>
+            {% endif %}
+            {% if item.unread > 0 %}
+            <span class="absolute -top-1 -right-1 w-5 h-5 bg-red-500 rounded-full text-white text-xs flex items-center justify-center font-bold">
+              {{ item.unread }}
+            </span>
+            {% endif %}
+          </div>
+          <div class="flex-1 min-w-0">
+            <div class="font-semibold text-slate-800 text-sm truncate">
+              {% if item.user.role == 'doctor' %}Dr. {% endif %}{{ item.user.get_full_name }}
+            </div>
+            {% if item.last_message %}
+            <div class="text-xs text-slate-400 truncate {% if item.unread > 0 %}font-semibold text-slate-600{% endif %}">
+              {% if item.last_message.sender == user %}You: {% endif %}{{ item.last_message.content|truncatechars:30 }}
+            </div>
+            <div class="text-xs text-slate-300">{{ item.last_message.created_at|timesince }} ago</div>
+            {% else %}
+            <div class="text-xs text-slate-400">{{ item.user.unique_id }}</div>
+            {% endif %}
+          </div>
+        </a>
+        {% endfor %}
+      {% else %}
+      <div class="p-6 text-center text-slate-400">
+        <i class="fas fa-comment-slash text-3xl mb-2 block opacity-30"></i>
+        <p class="text-sm">No contacts yet</p>
+        <a href="/connections/list/" class="mt-2 text-xs text-blue-500 hover:underline block">Find doctors to connect</a>
+      </div>
+      {% endif %}
+    </div>
+  </div>
+
+  <!-- Chat Area -->
+  <div class="flex-1 bg-white rounded-2xl shadow-sm border border-slate-100 flex flex-col overflow-hidden">
+    {% if selected_user %}
+    <!-- Chat Header -->
+    <div class="p-4 border-b border-slate-100 flex items-center gap-3 bg-gradient-to-r from-blue-600 to-violet-700 text-white rounded-t-2xl">
+      {% if selected_photo %}
+      <img src="{{ selected_photo }}" alt="{{ selected_user.get_full_name }}"
+        class="w-11 h-11 rounded-xl object-cover border-2 border-white/30">
+      {% else %}
+      <div class="w-11 h-11 bg-white/20 rounded-xl flex items-center justify-center font-bold text-sm">
+        {{ selected_user.first_name|first }}{{ selected_user.last_name|first }}
+      </div>
+      {% endif %}
+      <div class="flex-1">
+        <div class="font-bold">{% if selected_user.role == 'doctor' %}Dr. {% endif %}{{ selected_user.get_full_name }}</div>
+        <div class="text-xs text-blue-200">{{ selected_user.unique_id }}
+          {% if selected_user.role == 'doctor' and selected_user.doctor_profile.specialty %}
+            · {{ selected_user.doctor_profile.get_specialty_display }}
+          {% endif %}
+        </div>
+      </div>
+      <div class="flex items-center gap-1">
+        {% if selected_user.is_online %}
+        <span class="w-2 h-2 rounded-full bg-emerald-400"></span>
+        <span class="text-xs text-emerald-300">Online</span>
+        {% else %}
+        <span class="w-2 h-2 rounded-full bg-slate-400"></span>
+        <span class="text-xs text-slate-300">
+          {% if selected_user.last_activity %}
+            Last seen: {{ selected_user.last_activity|time:"g:i A" }}
+          {% else %}
+            Offline
+          {% endif %}
+        </span>
+        {% endif %}
+      </div>
+      <a href="/appointments/book/?doctor={{ selected_user.id }}"
+        class="ml-2 px-3 py-1.5 bg-white/20 hover:bg-white/30 rounded-xl text-xs font-semibold transition">
+        <i class="fas fa-calendar-plus mr-1"></i>Book Apt
+      </a>
+    </div>
+
+    <!-- Messages Container -->
+    <div class="flex-1 overflow-y-auto p-4 space-y-3 bg-slate-50/50" id="msgContainer">
+      {% if messages_list %}
+        {% for msg in messages_list %}
+        <div class="flex {% if msg.sender == user %}justify-end{% else %}justify-start{% endif %} msg-item" data-id="{{ msg.id }}">
+          {% if msg.sender != user %}
+          <div class="flex-shrink-0 mr-2 self-end">
+            {% if selected_photo %}
+            <img src="{{ selected_photo }}" alt="" class="w-8 h-8 rounded-lg object-cover">
+            {% else %}
+            <div class="w-8 h-8 bg-gradient-to-br from-blue-500 to-violet-600 rounded-lg flex items-center justify-center text-white text-xs font-bold">
+              {{ msg.sender.first_name|first }}
+            </div>
+            {% endif %}
+          </div>
+          {% endif %}
+          <div class="max-w-[65%]">
+            <div class="px-4 py-2.5 rounded-2xl text-sm shadow-sm
+              {% if msg.sender == user %}bg-blue-600 text-white rounded-br-sm{% else %}bg-white text-slate-800 rounded-bl-sm border border-slate-100{% endif %}">
+              {{ msg.content }}
+            </div>
+            <div class="text-xs text-slate-400 mt-1 flex items-center gap-1 {% if msg.sender == user %}justify-end{% endif %}">
+              {{ msg.created_at|time:"g:i A" }}
+              {% if msg.sender == user %}
+              <i class="fas fa-{% if msg.is_read %}check-double text-blue-400{% elif msg.is_delivered %}check-double text-slate-400{% else %}check text-slate-300{% endif %} text-xs"></i>
+              {% endif %}
+            </div>
+          </div>
+        </div>
+        {% endfor %}
+      {% else %}
+      <div class="flex flex-col items-center justify-center h-full text-slate-400 py-16">
+        <i class="fas fa-comments text-5xl mb-4 opacity-20"></i>
+        <p class="text-sm font-medium">Start the conversation</p>
+        <p class="text-xs mt-1">Messages are secure and private</p>
+      </div>
+      {% endif %}
+    </div>
+
+    <!-- Typing indicator -->
+    <div id="typingIndicator" class="px-4 py-1 text-xs text-slate-400 hidden">
+      <i class="fas fa-ellipsis-h animate-pulse mr-1"></i>
+      {% if selected_user.role == 'doctor' %}Dr. {% endif %}{{ selected_user.first_name }} is typing...
+    </div>
+
+    <!-- Message Input -->
+    <div class="p-4 border-t border-slate-100 bg-white">
+      <div class="flex gap-3 items-end">
+        <textarea id="msgInput" rows="2" placeholder="Type your message... (Enter to send, Shift+Enter for new line)"
+          class="flex-1 px-4 py-3 bg-slate-50 border border-slate-200 rounded-2xl focus:outline-none focus:ring-2 focus:ring-blue-500 resize-none text-sm"
+          onkeydown="handleEnter(event)" oninput="autoGrow(this)">{% if message_draft %}{{ message_draft }}{% endif %}</textarea>
+        <button onclick="sendMsg()" id="sendBtn"
+          class="w-12 h-12 bg-blue-600 hover:bg-blue-700 text-white rounded-2xl flex items-center justify-center transition flex-shrink-0 shadow-sm hover:shadow-md">
+          <i class="fas fa-paper-plane"></i>
+        </button>
+      </div>
+    </div>
+
+    {% else %}
+    <!-- No Contact Selected -->
+    <div class="flex-1 flex flex-col items-center justify-center text-slate-400">
+      <div class="w-24 h-24 bg-slate-100 rounded-3xl flex items-center justify-center mb-4">
+        <i class="fas fa-comments text-slate-300 text-4xl"></i>
+      </div>
+      <h3 class="text-lg font-bold text-slate-500 mb-2">Your Messages</h3>
+      <p class="text-sm text-center max-w-xs">Select a contact from the left to start a secure conversation with your healthcare team.</p>
+    </div>
+    {% endif %}
+  </div>
+</div>
+
+{% if selected_user %}
+<script>
+const csrfToken = document.querySelector('[name=csrfmiddlewaretoken]').value;
+const receiverId = {{ selected_user.id }};
+const container = document.getElementById('msgContainer');
+const currentUserId = {{ user.id }};
+let lastMsgId = {{ messages_list.last.id|default:0 }};
+const selectedPhoto = "{{ selected_photo|default:'' }}";
+
+// Scroll to bottom on load
+container.scrollTop = container.scrollHeight;
+
+function handleEnter(e) {
+  if (e.key === 'Enter' && !e.shiftKey) {
+    e.preventDefault();
+    sendMsg();
+  }
+}
+
+function autoGrow(el) {
+  el.style.height = 'auto';
+  el.style.height = Math.min(el.scrollHeight, 120) + 'px';
+}
+
+function sendMsg() {
+  const input = document.getElementById('msgInput');
+  const content = input.value.trim();
+  if (!content) return;
+  const btn = document.getElementById('sendBtn');
+  btn.disabled = true;
+  btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i>';
+
+  fetch('/messages/send/', {
+    method: 'POST',
+    headers: {'Content-Type': 'application/x-www-form-urlencoded', 'X-CSRFToken': csrfToken},
+    body: `receiver_id=${receiverId}&content=${encodeURIComponent(content)}`
+  }).then(r => r.json()).then(data => {
+    if (data.success) {
+      input.value = '';
+      input.style.height = 'auto';
+      appendMsg(content, data.created_at, true, data.id);
+      lastMsgId = data.id;
+    }
+    btn.disabled = false;
+    btn.innerHTML = '<i class="fas fa-paper-plane"></i>';
+  }).catch(() => {
+    btn.disabled = false;
+    btn.innerHTML = '<i class="fas fa-paper-plane"></i>';
+  });
+}
+
+function appendMsg(content, time, isMine, msgId) {
+  const wrapper = document.createElement('div');
+  wrapper.className = `flex ${isMine ? 'justify-end' : 'justify-start'} msg-item`;
+  if (msgId) wrapper.dataset.id = msgId;
+
+  let avatarHTML = '';
+  if (!isMine) {
+    avatarHTML = selectedPhoto
+      ? `<div class="flex-shrink-0 mr-2 self-end"><img src="${selectedPhoto}" class="w-8 h-8 rounded-lg object-cover"></div>`
+      : `<div class="flex-shrink-0 mr-2 self-end"><div class="w-8 h-8 bg-gradient-to-br from-blue-500 to-violet-600 rounded-lg flex items-center justify-center text-white text-xs font-bold">{{ selected_user.first_name|first }}</div></div>`;
+  }
+
+  wrapper.innerHTML = `${avatarHTML}
+    <div class="max-w-[65%]">
+      <div class="px-4 py-2.5 rounded-2xl text-sm shadow-sm ${isMine ? 'bg-blue-600 text-white rounded-br-sm' : 'bg-white text-slate-800 rounded-bl-sm border border-slate-100'}">
+        ${escapeHtml(content)}
+      </div>
+      <div class="text-xs text-slate-400 mt-1 flex items-center gap-1 ${isMine ? 'justify-end' : ''}">
+        ${time}
+        ${isMine ? '<i class="fas fa-check text-slate-300 text-xs"></i>' : ''}
+      </div>
+    </div>`;
+  container.appendChild(wrapper);
+  container.scrollTop = container.scrollHeight;
+}
+
+function escapeHtml(text) {
+  const div = document.createElement('div');
+  div.appendChild(document.createTextNode(text));
+  return div.innerHTML;
+}
+
+// Poll for new messages and status every 3 seconds
+setInterval(() => {
+  // Update online status
+  fetch(`/messages/status/${receiverId}/`)
+    .then(r => r.json())
+    .then(data => {
+      const statusContainer = document.querySelector('.flex.items-center.gap-1'); // The one in the header
+      if (statusContainer) {
+        statusContainer.innerHTML = data.is_online
+          ? `<span class="w-2 h-2 rounded-full bg-emerald-400"></span><span class="text-xs text-emerald-300">Online</span>`
+          : `<span class="w-2 h-2 rounded-full bg-slate-400"></span><span class="text-xs text-slate-300">Last seen: ${data.last_activity || 'Offline'}</span>`;
+      }
+    }).catch(() => {});
+
+  fetch(`/messages/get/${receiverId}/?since=${lastMsgId}`)
+    .then(r => r.json())
+    .then(data => {
+      if (data.messages && data.messages.length > 0) {
+        data.messages.forEach(m => {
+          if (!m.is_mine) {
+            appendMsg(m.content, m.created_at, false, m.id);
+          } else {
+            // Update status for my own messages
+            const msgEl = document.querySelector(`.msg-item[data-id="${m.id}"]`);
+            if (msgEl) {
+              const icon = msgEl.querySelector('.fa-check, .fa-check-double');
+              if (icon) {
+                if (m.is_read) {
+                  icon.className = 'fas fa-check-double text-blue-400 text-xs';
+                } else if (m.is_delivered) {
+                  icon.className = 'fas fa-check-double text-slate-400 text-xs';
+                } else {
+                  icon.className = 'fas fa-check text-slate-300 text-xs';
+                }
+              }
+            }
+          }
+          lastMsgId = Math.max(lastMsgId, m.id);
+        });
+      }
+    }).catch(() => {});
+}, 3000);
+</script>
+{% endif %}
+{% endblock %}

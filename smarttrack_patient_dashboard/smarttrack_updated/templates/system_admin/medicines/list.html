@@ -1,0 +1,9 @@
+{% extends 'system_admin/base.html' %}
+{% block content %}
+<div class="bg-white rounded-2xl border shadow-sm overflow-hidden">
+  <div class="p-5 border-b"><form method="GET"><input name="q" value="{{ q }}" class="px-3 py-2 border rounded-xl text-sm" placeholder="Search medicine or patient..."><button class="ml-2 px-4 py-2 bg-indigo-600 text-white rounded-xl text-sm">Search</button></form></div>
+  <table class="w-full text-sm"><thead><tr class="bg-slate-50 text-xs uppercase"><th class="px-5 py-3 text-left">Medicine</th><th class="px-4 py-3">Patient</th><th class="px-4 py-3">Dosage</th><th class="px-4 py-3">Active</th></tr></thead>
+  <tbody>{% for m in page %}<tr class="border-b"><td class="px-5 py-3 font-medium">{{ m.name }}</td><td class="px-4 py-3">{{ m.patient.get_full_name }}</td><td class="px-4 py-3">{{ m.dosage }}</td><td class="px-4 py-3">{% if m.is_active %}Yes{% else %}No{% endif %}</td></tr>{% empty %}<tr><td colspan="4" class="py-10 text-center text-slate-400">No medicines.</td></tr>{% endfor %}</tbody></table>
+  <div class="p-5">{% include 'system_admin/includes/pagination.html' %}</div>
+</div>
+{% endblock %}

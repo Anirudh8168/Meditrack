@@ -1,0 +1,20 @@
+{% extends 'base_dashboard.html' %}
+{% block title %}Video Consultation{% endblock %}
+{% block page_title %}Consultation with Dr. {{ apt.doctor.get_full_name }}{% endblock %}
+
+{% block content %}
+{% include 'dashboard/patient/video_call_content.html' %}
+{% endblock %}
+
+{% block extra_js %}
+<script>
+document.addEventListener('DOMContentLoaded', function () {
+  if (typeof window.SmartTrackBootConsultation === 'function') {
+    window.SmartTrackBootConsultation().catch(function (e) {
+      console.error('[SmartTrack Video] boot failed', e);
+      showToast('error', 'Video Consultation', e.message || 'Could not start video consultation.');
+    });
+  }
+});
+</script>
+{% endblock %}

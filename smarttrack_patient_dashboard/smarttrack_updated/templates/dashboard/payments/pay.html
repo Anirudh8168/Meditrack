@@ -1,0 +1,154 @@
+{% extends 'base_dashboard.html' %}
+{% block title %}Pay Consultation{% endblock %}
+{% block page_title %}Consultation Payment{% endblock %}
+{% block page_subtitle %}Payment is due after your consultation has ended{% endblock %}
+
+{% block content %}
+<form style="display:none">{% csrf_token %}</form>
+<div class="max-w-lg mx-auto">
+  <div class="mb-4 p-4 bg-amber-50 border border-amber-200 rounded-2xl text-sm text-amber-800">
+    <i class="fas fa-info-circle mr-1"></i>
+    Consultation completed — please complete payment to receive your receipt.
+  </div>
+
+  <div class="bg-white rounded-3xl shadow-xl border border-slate-100 overflow-hidden">
+    <div class="bg-gradient-to-r from-blue-600 to-indigo-700 px-6 py-8 text-white text-center">
+      {% if doctor_photo %}
+      <img src="{{ doctor_photo }}" alt="" class="w-20 h-20 rounded-2xl mx-auto mb-3 object-cover border-4 border-white/30 shadow-lg">
+      {% else %}
+      <div class="w-20 h-20 rounded-2xl mx-auto mb-3 bg-white/20 flex items-center justify-center text-2xl font-bold">{{ payment.doctor.first_name|first }}</div>
+      {% endif %}
+      <h2 class="text-xl font-bold">Dr. {{ payment.doctor.get_full_name }}</h2>
+      <p class="text-blue-100 text-sm mt-1">{{ payment.appointment_type_display }}</p>
+    </div>
+
+    <div class="p-6 space-y-4">
+      <div class="flex justify-between text-sm py-2 border-b border-slate-100">
+        <span class="text-slate-500">Appointment Date</span>
+        <span class="font-semibold text-slate-800">{{ appointment.appointment_date|date:"M j, Y" }}</span>
+      </div>
+      {% if duration %}
+      <div class="flex justify-between text-sm py-2 border-b border-slate-100">
+        <span class="text-slate-500">Consultation Duration</span>
+        <span class="font-semibold text-slate-800">{{ duration }}</span>
+      </div>
+      {% endif %}
+      <div class="flex justify-between text-sm py-2 border-b border-slate-100">
+        <span class="text-slate-500">Consultation Fee</span>
+        <span class="font-semibold text-slate-800">₹{{ payment.amount }}</span>
+      </div>
+      <div class="flex justify-between text-lg py-3">
+        <span class="font-bold text-slate-800">Amount Due</span>
+        <span class="font-black text-slate-900">₹{{ payment.total_amount }}</span>
+      </div>
+
+      <button type="button" id="openPayModalBtn" class="w-full py-4 bg-gradient-to-r from-emerald-600 to-teal-600 text-white rounded-2xl font-bold text-lg hover:from-emerald-700 hover:to-teal-700 transition shadow-lg">
+        <i class="fas fa-lock mr-2"></i> Pay Now — ₹{{ payment.total_amount }}
+      </button>
+      <a href="/appointments/detail/{{ appointment.id }}/" class="block text-center text-sm text-slate-500 hover:text-slate-700">Cancel</a>
+    </div>
+  </div>
+</div>
+
+<!-- Payment Method Modal -->
+<div id="payMethodModal" class="fixed inset-0 bg-black/60 z-50 hidden flex items-center justify-center p-4">
+  <div class="bg-white rounded-2xl shadow-2xl w-full max-w-md overflow-hidden">
+    <div class="px-6 py-5 border-b border-slate-100">
+      <h3 class="font-bold text-slate-800 text-lg">Consultation Payment</h3>
+      <p class="text-sm text-slate-500 mt-0.5">Dr. {{ payment.doctor.get_full_name }} · {{ payment.appointment_type_display }}</p>
+    </div>
+    <div class="p-6">
+      <div class="text-center mb-5">
+        <div class="text-3xl font-black text-slate-900">₹{{ payment.total_amount }}</div>
+        <div class="text-xs text-slate-400 mt-1">Consultation fee</div>
+      </div>
+      <p class="text-sm font-semibold text-slate-700 mb-3">Payment Method</p>
+      <div class="space-y-2 mb-6" id="methodOptions">
+        {% for val, label, icon in payment_methods %}
+        <label class="flex items-center gap-3 p-3 border border-slate-200 rounded-xl cursor-pointer hover:border-blue-400 hover:bg-blue-50/50 transition method-option">
+          <input type="radio" name="payment_method" value="{{ val }}" class="text-blue-600" {% if forloop.first %}checked{% endif %}>
+          <i class="fas {{ icon }} text-blue-600 w-5 text-center"></i>
+          <span class="font-medium text-slate-800 text-sm">{{ label }}</span>
+        </label>
+        {% endfor %}
+      </div>
+      <div class="flex gap-3">
+        <button type="button" id="continuePayBtn" class="flex-1 py-3 bg-blue-600 text-white rounded-xl font-bold hover:bg-blue-700 transition">
+          Continue Payment
+        </button>
+        <button type="button" id="closePayModalBtn" class="px-4 py-3 bg-slate-100 text-slate-700 rounded-xl font-semibold hover:bg-slate-200 transition">Cancel</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+{% if razorpay_enabled %}
+<script src="https://checkout.razorpay.com/v1/checkout.js"></script>
+{% endif %}
+<script>
+(function() {
+  const csrf = document.querySelector('[name=csrfmiddlewaretoken]').value;
+  const modal = document.getElementById('payMethodModal');
+  const razorpayEnabled = {{ razorpay_enabled|yesno:"true,false" }};
+
+  document.getElementById('openPayModalBtn').addEventListener('click', () => modal.classList.remove('hidden'));
+  document.getElementById('closePayModalBtn').addEventListener('click', () => modal.classList.add('hidden'));
+  modal.addEventListener('click', e => { if (e.target === modal) modal.classList.add('hidden'); });
+
+  document.getElementById('continuePayBtn').addEventListener('click', function() {
+    const btn = this;
+    const method = document.querySelector('input[name=payment_method]:checked');
+    if (!method) return alert('Select a payment method');
+    btn.disabled = true;
+    btn.textContent = 'Processing…';
+
+    const fd = new FormData();
+    fd.append('payment_method', method.value);
+
+    fetch('{% url "initiate_payment" payment.payment_id %}', {
+      method: 'POST', headers: { 'X-CSRFToken': csrf }, body: fd,
+    }).then(r => r.json()).then(d => {
+      if (!d.success) {
+        alert(d.message || d.error || 'Could not start payment');
+        btn.disabled = false;
+        btn.textContent = 'Continue Payment';
+        return;
+      }
+      if (d.razorpay && typeof Razorpay !== 'undefined') {
+        const options = {
+          key: d.key,
+          amount: d.amount_paise,
+          currency: 'INR',
+          name: 'SmartTrack Healthcare',
+          description: '{{ payment.appointment_type_display|escapejs }}',
+          order_id: d.order_id,
+          handler: function(response) {
+            const vfd = new FormData();
+            vfd.append('razorpay_payment_id', response.razorpay_payment_id);
+            vfd.append('razorpay_order_id', response.razorpay_order_id);
+            vfd.append('razorpay_signature', response.razorpay_signature);
+            fetch('{% url "verify_payment" payment.payment_id %}', {
+              method: 'POST', headers: { 'X-CSRFToken': csrf }, body: vfd,
+            }).then(r => r.json()).then(v => {
+              if (v.success) window.location.href = v.redirect;
+              else { alert(v.message); btn.disabled = false; btn.textContent = 'Continue Payment'; }
+            });
+          },
+          theme: { color: '#2563EB' },
+        };
+        new Razorpay(options).open();
+        btn.disabled = false;
+        btn.textContent = 'Continue Payment';
+        modal.classList.add('hidden');
+      } else if (d.redirect) {
+        window.location.href = d.redirect;
+      }
+    }).catch(() => {
+      alert('Network error');
+      btn.disabled = false;
+      btn.textContent = 'Continue Payment';
+    });
+  });
+})();
+</script>
+{% endblock %}

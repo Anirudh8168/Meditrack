@@ -1,0 +1,495 @@
+{% extends 'base_dashboard.html' %}
+{% block title %}Appointments{% endblock %}
+{% block page_title %}Appointments{% endblock %}
+{% block page_subtitle %}Manage your upcoming and past appointments{% endblock %}
+
+{% block content %}
+{% load static %}
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+<link rel="stylesheet" href="{% static 'css/nearby_places.css' %}?v=5" />
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script src="{% static 'js/nearby_places.js' %}?v=8"></script>
+<form style="display:none">{% csrf_token %}</form>
+
+<!-- Emergency Video Modal -->
+<div id="emergencyModal" class="fixed inset-0 bg-black/50 z-50 hidden flex items-center justify-center p-4">
+  <div class="bg-white rounded-2xl shadow-2xl w-full max-w-md p-6 animate-slide-in">
+    <div class="flex items-center gap-3 mb-4">
+      <div class="w-10 h-10 bg-red-100 rounded-xl flex items-center justify-center animate-pulse">
+        <i class="fas fa-bolt text-red-600"></i>
+      </div>
+      <div>
+        <h3 class="font-bold text-slate-800 text-red-700">Emergency Video Consultation</h3>
+        <p class="text-xs text-red-500">Doctor will be notified immediately</p>
+      </div>
+    </div>
+    <div class="bg-red-50 border border-red-200 rounded-xl p-3 mb-4 text-sm text-red-700">
+      <i class="fas fa-exclamation-triangle mr-2"></i>
+      Use this only in genuine emergencies. Your doctor will be alerted immediately.
+    </div>
+    <textarea id="emergencyNotes" rows="2" placeholder="Briefly describe your emergency..."
+      class="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-red-400 resize-none mb-4"></textarea>
+    <div class="flex gap-3">
+      <button type="button" onclick="document.getElementById('emergencyModal').classList.add('hidden')" class="flex-1 px-4 py-2.5 bg-slate-100 text-slate-700 rounded-xl font-semibold text-sm">Close</button>
+      <button type="button" data-emergency-submit onclick="requestEmergency()" class="flex-1 px-4 py-2.5 bg-red-600 text-white rounded-xl font-semibold text-sm hover:bg-red-700 transition"><i class="fas fa-bolt mr-2"></i>Request Emergency</button>
+    </div>
+  </div>
+</div>
+
+<!-- Reject appointment modal (all types) -->
+<div id="rejectModal" class="fixed inset-0 bg-black/50 z-50 hidden flex items-center justify-center p-4">
+  <div class="bg-white rounded-2xl shadow-2xl w-full max-w-md p-6 animate-slide-in">
+    <div class="flex items-center gap-3 mb-4">
+      <div class="w-10 h-10 bg-red-100 rounded-xl flex items-center justify-center">
+        <i class="fas fa-times-circle text-red-500"></i>
+      </div>
+      <div>
+        <h3 class="font-bold text-slate-800">Reject Appointment</h3>
+        <p class="text-xs text-slate-500">Reason is required — patient will be notified</p>
+      </div>
+    </div>
+    <form id="rejectForm" method="POST" action="">
+      {% csrf_token %}
+      <input type="hidden" name="action" value="reject">
+      <div class="mb-4">
+        <label class="block text-sm font-semibold text-slate-700 mb-2">Reason <span class="text-red-500">*</span></label>
+        <select name="rejection_reason" required class="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-red-400">
+          <option value="">Select reason</option>
+          <option value="Not available at selected time">Not available at selected time</option>
+          <option value="Schedule conflict">Schedule conflict</option>
+          <option value="Wrong appointment request">Wrong appointment request</option>
+          <option value="Emergency unavailable">Emergency unavailable</option>
+          <option value="Other">Other</option>
+        </select>
+        <textarea name="rejection_reason_custom" rows="2" placeholder="Details (required if Other)"
+          class="w-full mt-2 px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl text-sm resize-none"></textarea>
+      </div>
+      <div class="flex gap-3">
+        <button type="button" onclick="closeRejectModal()" class="flex-1 px-4 py-2.5 bg-slate-100 text-slate-700 rounded-xl font-semibold text-sm hover:bg-slate-200 transition">Close</button>
+        <button type="submit" class="flex-1 px-4 py-2.5 bg-red-600 text-white rounded-xl font-semibold text-sm hover:bg-red-700 transition">Confirm Reject</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<!-- Cancel appointment modal (doctor) -->
+<div id="cancelModal" class="fixed inset-0 bg-black/50 z-50 hidden flex items-center justify-center p-4">
+  <div class="bg-white rounded-2xl shadow-2xl w-full max-w-md p-6 animate-slide-in">
+    <div class="flex items-center gap-3 mb-4">
+      <div class="w-10 h-10 bg-amber-100 rounded-xl flex items-center justify-center">
+        <i class="fas fa-calendar-times text-amber-600"></i>
+      </div>
+      <div>
+        <h3 class="font-bold text-slate-800">Cancel Appointment</h3>
+        <p class="text-xs text-slate-500">Patient will see cancelled status with your reason</p>
+      </div>
+    </div>
+    <form id="cancelForm" method="POST" action="">
+      {% csrf_token %}
+      <input type="hidden" name="action" value="cancel">
+      <div class="mb-4">
+        <label class="block text-sm font-semibold text-slate-700 mb-2">Reason for cancellation <span class="text-red-500">*</span></label>
+        <select name="cancellation_reason" required class="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-amber-400">
+          <option value="">Select reason</option>
+          <option value="Schedule conflict">Schedule conflict</option>
+          <option value="Doctor unavailable">Doctor unavailable</option>
+          <option value="Emergency">Emergency</option>
+          <option value="Reschedule required">Reschedule required</option>
+          <option value="Personal reason">Personal reason</option>
+          <option value="Other">Other</option>
+        </select>
+        <textarea name="cancellation_reason_custom" rows="2" placeholder="Custom reason (required if Other)"
+          class="w-full mt-2 px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl text-sm resize-none"></textarea>
+      </div>
+      <div class="flex gap-3">
+        <button type="button" onclick="closeCancelModal()" class="flex-1 px-4 py-2.5 bg-slate-100 text-slate-700 rounded-xl font-semibold text-sm">Close</button>
+        <button type="submit" class="flex-1 px-4 py-2.5 bg-amber-600 text-white rounded-xl font-semibold text-sm hover:bg-amber-700">Cancel Appointment</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<!-- Reject Emergency Modal (legacy id for JS) -->
+<div id="rejectEmergencyModal" class="fixed inset-0 bg-black/50 z-50 hidden flex items-center justify-center p-4">
+  <div class="bg-white rounded-2xl shadow-2xl w-full max-w-md p-6 animate-slide-in">
+    <div class="flex items-center gap-3 mb-4">
+      <div class="w-10 h-10 bg-red-100 rounded-xl flex items-center justify-center">
+        <i class="fas fa-user-slash text-red-600"></i>
+      </div>
+      <div>
+        <h3 class="font-bold text-slate-800">Reject Emergency Consultation</h3>
+        <p class="text-xs text-slate-500">Reason is required</p>
+      </div>
+    </div>
+    <form id="rejectEmergencyForm" method="POST" action="">
+      {% csrf_token %}
+      <input type="hidden" name="action" value="reject">
+      <div class="mb-4">
+        <label class="block text-sm font-semibold text-slate-700 mb-2">Reason <span class="text-red-500">*</span></label>
+        <select id="rejectReason" name="rejection_reason" required class="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-red-400">
+          <option value="">Select reason</option>
+          <option value="Doctor unavailable">Doctor unavailable</option>
+          <option value="In another consultation">In another consultation</option>
+          <option value="Outside working hours">Outside working hours</option>
+          <option value="Emergency capacity full">Emergency capacity full</option>
+          <option value="Other">Other</option>
+        </select>
+      </div>
+      <div class="flex gap-3">
+        <button type="button" onclick="closeRejectEmergencyModal()" class="flex-1 px-4 py-2.5 bg-slate-100 text-slate-700 rounded-xl font-semibold text-sm hover:bg-slate-200 transition">Close</button>
+        <button type="submit" class="flex-1 px-4 py-2.5 bg-red-600 text-white rounded-xl font-semibold text-sm hover:bg-red-700 transition">Confirm Reject</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<!-- In-app clinic finder (large panel + maximize) -->
+<div id="clinicFinderBackdrop" class="nearby-places-backdrop">
+  <div id="clinicFinderPanel" class="nearby-places-panel is-minimized">
+    <div class="nearby-places-header">
+      <div>
+        <h3 class="font-bold text-slate-800 text-lg"><i class="fas fa-hospital text-red-500 mr-2"></i>Nearby Clinics & Hospitals</h3>
+        <p class="text-xs text-slate-500">Based on your live GPS location only</p>
+      </div>
+      <div class="flex items-center gap-1">
+        <button type="button" id="clinicFinderMinimize" class="p-2 rounded-lg hover:bg-slate-200 text-slate-600" title="Restore size"><i class="fas fa-compress"></i></button>
+        <button type="button" id="clinicFinderMaximize" class="p-2 rounded-lg hover:bg-slate-200 text-slate-600" title="Maximize"><i class="fas fa-expand"></i></button>
+        <button type="button" id="clinicFinderClose" class="p-2 rounded-lg hover:bg-slate-200 text-slate-600" title="Close"><i class="fas fa-times"></i></button>
+      </div>
+    </div>
+    <div class="nearby-places-body">
+      <div class="nearby-places-list-wrap">
+        <div id="clinicList"></div>
+      </div>
+      <div class="nearby-places-map-wrap">
+        <div id="clinicMap" class="nearby-places-map"></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+{% if user.role != 'doctor' %}
+<div id="emergencyReopenBar" class="hidden mb-4 bg-red-50 border-2 border-red-200 rounded-2xl p-4 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+  <div class="flex items-center gap-3">
+    <div class="w-10 h-10 bg-red-100 rounded-xl flex items-center justify-center flex-shrink-0">
+      <i class="fas fa-bolt text-red-600"></i>
+    </div>
+    <div>
+      <p class="font-bold text-red-800 text-sm">🚨 Emergency Request Active</p>
+      <p class="text-xs text-red-600">Waiting for doctor response — timer still running</p>
+    </div>
+  </div>
+  <button type="button" id="emergencyReopenStatusBtn"
+    class="px-4 py-2.5 bg-red-600 text-white rounded-xl text-sm font-bold hover:bg-red-700 transition whitespace-nowrap">
+    <i class="fas fa-external-link-alt mr-2"></i>Open Status
+  </button>
+</div>
+{% endif %}
+
+<!-- Header -->
+<div class="flex items-center justify-between mb-6 flex-wrap gap-3">
+  <div class="flex gap-2 flex-wrap">
+    <a href="/appointments/book/" class="px-4 py-2 bg-violet-600 text-white rounded-xl font-semibold text-sm hover:bg-violet-700 transition flex items-center gap-2">
+      <i class="fas fa-calendar-plus"></i>
+      {% if user.role == 'doctor' %}Book Appointment{% else %}Book Appointment{% endif %}
+    </a>
+    {% if user.role != 'doctor' %}
+    <button onclick="document.getElementById('emergencyModal').classList.remove('hidden')"
+      class="px-4 py-2 bg-red-600 text-white rounded-xl font-semibold text-sm hover:bg-red-700 transition flex items-center gap-2 animate-pulse">
+      <i class="fas fa-bolt"></i> Emergency Video
+    </button>
+    {% endif %}
+  </div>
+  {% if user.role != 'doctor' %}
+  <a href="/medicines/analytics/" class="text-xs text-slate-500 hover:text-slate-700 transition flex items-center gap-1">
+    <i class="fas fa-chart-line"></i> Health Analytics
+  </a>
+  {% endif %}
+</div>
+
+<!-- Upcoming Appointments -->
+<div class="bg-white rounded-2xl shadow-sm border border-slate-100 p-6 mb-6">
+  <h3 class="font-bold text-slate-800 mb-4 flex items-center gap-2">
+    <i class="fas fa-calendar-check text-violet-500"></i> Upcoming Appointments
+    <span class="ml-auto text-xs text-slate-400">{{ upcoming.count }} appointment(s)</span>
+  </h3>
+  {% if upcoming %}
+  <div class="space-y-4">
+    {% for apt in upcoming %}
+    <div class="flex flex-col sm:flex-row sm:items-center gap-4 p-4 rounded-2xl border border-slate-100 hover:bg-slate-50 transition">
+      <div class="w-14 h-14 rounded-xl flex flex-col items-center justify-center flex-shrink-0
+        {% if apt.appointment_type == 'video' or apt.appointment_type == 'emergency_video' %}bg-blue-100{% else %}bg-violet-100{% endif %}">
+        <span class="text-lg font-black {% if apt.appointment_type == 'video' or apt.appointment_type == 'emergency_video' %}text-blue-700{% else %}text-violet-700{% endif %}">{{ apt.appointment_date|date:"j" }}</span>
+        <span class="text-xs {% if apt.appointment_type == 'video' or apt.appointment_type == 'emergency_video' %}text-blue-500{% else %}text-violet-500{% endif %}">{{ apt.appointment_date|date:"M" }}</span>
+      </div>
+      <div class="flex-1 min-w-0">
+        <div class="flex items-center gap-2 flex-wrap">
+          <div class="font-bold text-slate-800">
+            {% if user.role == 'doctor' %}
+              Patient: {{ apt.patient.get_full_name }}
+            {% else %}
+              Dr. {{ apt.doctor.get_full_name }}
+            {% endif %}
+          </div>
+          {% if apt.is_emergency %}<span class="px-2 py-0.5 bg-red-100 text-red-700 text-xs rounded-full font-semibold">🚨 Emergency</span>{% endif %}
+        </div>
+        <div class="text-sm text-slate-500 mt-0.5">{{ apt.appointment_time|time:"g:i A" }} · {{ apt.get_appointment_type_display }}</div>
+        {% if apt.reason %}<div class="text-xs text-slate-400 mt-1">📝 {{ apt.reason }}</div>{% endif %}
+        {% if apt.doctor.doctor_profile.specialty %}<div class="text-xs text-blue-600 mt-0.5">{{ apt.doctor.doctor_profile.get_specialty_display }}</div>{% endif %}
+      </div>
+      <div class="flex items-center gap-2 flex-wrap">
+        <span class="text-xs px-3 py-1 rounded-full font-semibold
+          {% if apt.status == 'confirmed' or apt.status == 'ongoing' %}bg-emerald-100 text-emerald-700
+          {% elif apt.status == 'pending_doctor_confirmation' %}bg-red-100 text-red-700
+          {% elif apt.status == 'pending_confirmation' %}bg-amber-100 text-amber-700
+          {% elif apt.status == 'doctor_confirmed' %}bg-blue-100 text-blue-700
+          {% elif apt.status == 'patient_confirmed' %}bg-indigo-100 text-indigo-700
+          {% else %}bg-slate-100 text-slate-600{% endif %}">{{ apt.role_status }}</span>
+
+        {% if apt.status == 'confirmed' or apt.status == 'ongoing' %}
+        {% if apt.appointment_type == 'video' or apt.appointment_type == 'emergency_video' %}
+        {% if apt.video_link %}
+        <a href="{{ apt.video_link }}"
+          data-join-video="{{ apt.video_link }}"
+          onclick="return smartTrackJoinVideoCall(this, event)"
+          class="join-video-btn px-3 py-1.5 bg-blue-600 text-white text-xs rounded-xl hover:bg-blue-700 transition inline-flex items-center gap-1">
+          <i class="fas fa-video"></i> Join Video Call
+        </a>
+        {% endif %}
+        {% endif %}
+        {% if user.role == 'doctor' and apt.doctor == user %}
+        <button type="button" onclick="openCancelModal({{ apt.id }})"
+          class="px-3 py-1.5 bg-amber-50 text-amber-700 border border-amber-200 text-xs rounded-xl hover:bg-amber-100 transition font-semibold">
+          <i class="fas fa-calendar-times"></i> Cancel
+        </button>
+        {% endif %}
+        {% elif apt.status == 'doctor_confirmed' and user.role == 'patient' %}
+        <form method="POST" action="/appointments/update/{{ apt.id }}/" class="inline">
+          {% csrf_token %}<input type="hidden" name="action" value="confirm_attendance">
+          <button type="submit" class="px-3 py-1.5 bg-emerald-600 text-white text-xs rounded-xl hover:bg-emerald-700 transition flex items-center gap-1">
+            <i class="fas fa-check"></i> Confirm
+          </button>
+        </form>
+        {% elif apt.status == 'pending_doctor_confirmation' %}
+          {% if user.role == 'doctor' and apt.is_emergency %}
+          <div class="flex gap-2">
+            <form method="POST" action="/appointments/update/{{ apt.id }}/" class="inline">
+              {% csrf_token %}<input type="hidden" name="action" value="confirm">
+              <button type="submit" class="px-2 py-1 bg-emerald-600 text-white text-[10px] rounded-lg hover:bg-emerald-700 transition font-bold">Accept</button>
+            </form>
+            <button type="button" onclick="openRejectEmergencyModal({{ apt.id }})" class="px-2 py-1 bg-white text-red-600 border border-red-200 text-[10px] rounded-lg hover:bg-red-50 transition font-bold">Reject</button>
+          </div>
+          {% elif user.role == 'doctor' %}
+          <div class="flex gap-2">
+            <form method="POST" action="/appointments/update/{{ apt.id }}/" class="inline">
+              {% csrf_token %}<input type="hidden" name="action" value="confirm">
+              <button type="submit" class="px-2 py-1 bg-emerald-600 text-white text-[10px] rounded-lg hover:bg-emerald-700 transition font-bold">Confirm</button>
+            </form>
+            <button type="button" onclick="openRejectModal({{ apt.id }})" class="px-2 py-1 bg-white text-red-600 border border-red-200 text-[10px] rounded-lg hover:bg-red-50 transition font-bold">Reject</button>
+          </div>
+          {% else %}
+          <div class="flex items-center gap-2 px-3 py-1.5 bg-red-50 text-red-600 text-xs rounded-xl font-medium border border-red-100" id="timer-{{ apt.id }}">
+            <i class="fas fa-clock animate-spin"></i> Waiting for doctor (up to 5 min)
+          </div>
+          {% endif %}
+        {% elif apt.status == 'pending' or apt.status == 'pending_confirmation' %}
+          {% if user.role == 'doctor' %}
+          <div class="flex gap-2">
+            <form method="POST" action="/appointments/update/{{ apt.id }}/" class="inline">
+              {% csrf_token %}<input type="hidden" name="action" value="confirm">
+              <button type="submit" class="px-2 py-1 bg-emerald-600 text-white text-[10px] rounded-lg hover:bg-emerald-700 transition font-bold">Confirm</button>
+            </form>
+            <button type="button" onclick="openRejectModal({{ apt.id }})" class="px-2 py-1 bg-white text-red-600 border border-red-200 text-[10px] rounded-lg hover:bg-red-50 transition font-bold">Reject</button>
+          </div>
+          {% else %}
+          <div class="text-xs px-3 py-1.5 bg-amber-50 text-amber-600 rounded-xl font-medium border border-amber-100">
+            {% if apt.appointment_type == 'video' or apt.appointment_type == 'emergency_video' %}
+            Waiting for doctor confirmation
+            {% else %}
+            Awaiting confirmation
+            {% endif %}
+          </div>
+          {% endif %}
+        {% elif apt.status == 'rejected' or apt.status == 'timeout' %}
+        {% if apt.is_emergency and user.role == 'doctor' %}
+        <span class="text-xs px-3 py-1.5 rounded-xl font-semibold
+          {% if apt.status == 'timeout' %}bg-amber-100 text-amber-800{% else %}bg-red-100 text-red-700{% endif %}">
+          {% if apt.status == 'timeout' %}⚠️ Missed Emergency{% else %}Rejected{% endif %}
+        </span>
+        {% elif apt.is_emergency and user.role != 'doctor' %}
+        <button type="button" onclick="setEmergencyAptId({{ apt.id }}); openClinicFinder()"
+          class="px-3 py-1.5 bg-red-600 text-white text-xs rounded-xl hover:bg-red-700 transition flex items-center gap-1">
+          <i class="fas fa-hospital-alt"></i> Find Nearby Clinics
+        </button>
+        {% endif %}
+        {% if apt.rejection_reason %}
+        <span class="text-xs text-red-600 w-full sm:w-auto">Reason: {{ apt.rejection_reason }}</span>
+        {% endif %}
+        {% elif apt.status == 'cancelled_by_doctor' or apt.status == 'cancelled_by_patient' %}
+        <div class="w-full flex flex-col gap-1 mt-1">
+          <span class="text-xs px-3 py-1.5 rounded-xl font-semibold bg-slate-100 text-slate-700 w-fit">{{ apt.role_status }}</span>
+          {% if apt.cancellation_reason %}
+          <span class="text-xs text-slate-600"><strong>Reason:</strong> {{ apt.cancellation_reason }}</span>
+          {% endif %}
+          {% if apt.cancelled_at %}
+          <span class="text-xs text-slate-500">Cancelled at: {{ apt.cancelled_at|date:"M j, Y – g:i A" }}</span>
+          {% endif %}
+        </div>
+        {% endif %}
+      </div>
+    </div>
+    {% endfor %}
+  </div>
+  {% else %}
+  <div class="text-center py-10 text-slate-400">
+    <i class="fas fa-calendar text-5xl mb-3 opacity-20 block"></i>
+    <p class="text-sm font-medium">No upcoming appointments</p>
+    <p class="text-xs text-slate-400 mt-1">Use <strong>Book Appointment</strong> above to schedule.</p>
+  </div>
+  {% endif %}
+</div>
+
+<!-- Today's appointment history (no filters on dashboard) -->
+{% if today_sections.today_emergency %}
+<div class="bg-white rounded-2xl shadow-sm border border-amber-100 p-6 mb-6">
+  {% include 'includes/appointment_section_header.html' with title=history_categories.emergency.today_title icon_class='fa-bolt text-amber-600' history_category='emergency' %}
+  <div class="space-y-3">
+    {% for apt in today_sections.today_emergency %}
+    {% include 'includes/appointment_history_row.html' with apt=apt row_style='emergency' %}
+    {% endfor %}
+  </div>
+</div>
+{% endif %}
+
+{% if today_sections.today_emergency_consult %}
+<div class="bg-white rounded-2xl shadow-sm border border-slate-100 p-6 mb-6">
+  {% include 'includes/appointment_section_header.html' with title=history_categories.emergency.today_title icon_class='fa-video text-red-500' history_category='emergency' %}
+  <div class="space-y-2">
+    {% for apt in today_sections.today_emergency_consult %}
+    {% include 'includes/appointment_history_row.html' with apt=apt row_style='emergency' %}
+    {% endfor %}
+  </div>
+</div>
+{% endif %}
+
+{% if today_sections.today_completed %}
+<div class="bg-white rounded-2xl shadow-sm border border-slate-100 p-6 mb-6">
+  {% include 'includes/appointment_section_header.html' with title=history_categories.completed.today_title icon_class='fa-check-circle text-emerald-500' history_category='completed' %}
+  <div class="space-y-2">
+    {% for apt in today_sections.today_completed %}
+    {% include 'includes/appointment_history_row.html' with apt=apt %}
+    {% endfor %}
+  </div>
+</div>
+{% endif %}
+
+{% if today_sections.today_video %}
+<div class="bg-white rounded-2xl shadow-sm border border-slate-100 p-6 mb-6">
+  {% include 'includes/appointment_section_header.html' with title=history_categories.video.today_title icon_class='fa-video text-blue-500' history_category='video' %}
+  <div class="space-y-2">
+    {% for apt in today_sections.today_video %}
+    {% include 'includes/appointment_history_row.html' with apt=apt %}
+    {% endfor %}
+  </div>
+</div>
+{% endif %}
+
+{% if today_sections.today_rejected %}
+<div class="bg-white rounded-2xl shadow-sm border border-red-100 p-6 mb-6">
+  {% include 'includes/appointment_section_header.html' with title=history_categories.rejected.today_title icon_class='fa-times-circle text-red-400' history_category='rejected' %}
+  <div class="space-y-2">
+    {% for apt in today_sections.today_rejected %}
+    {% include 'includes/appointment_history_row.html' with apt=apt row_style='rejected' %}
+    {% endfor %}
+  </div>
+</div>
+{% endif %}
+
+{% if today_sections.today_cancelled %}
+<div class="bg-white rounded-2xl shadow-sm border border-slate-200 p-6 mb-6">
+  {% include 'includes/appointment_section_header.html' with title=history_categories.cancelled.today_title icon_class='fa-ban text-slate-500' history_category='cancelled' %}
+  <div class="space-y-2">
+    {% for apt in today_sections.today_cancelled %}
+    {% include 'includes/appointment_history_row.html' with apt=apt row_style='cancelled' %}
+    {% endfor %}
+  </div>
+</div>
+{% endif %}
+
+<script>
+const csrfToken = document.querySelector('[name=csrfmiddlewaretoken]').value;
+
+function openRejectModal(aptId) {
+  document.getElementById('rejectForm').action = `/appointments/update/${aptId}/`;
+  document.getElementById('rejectModal').classList.remove('hidden');
+}
+function closeRejectModal() {
+  document.getElementById('rejectModal').classList.add('hidden');
+}
+function openRejectEmergencyModal(aptId) {
+  openRejectModal(aptId);
+}
+function closeRejectEmergencyModal() {
+  closeRejectModal();
+}
+function openCancelModal(aptId) {
+  document.getElementById('cancelForm').action = `/appointments/update/${aptId}/`;
+  document.getElementById('cancelModal').classList.remove('hidden');
+}
+function closeCancelModal() {
+  document.getElementById('cancelModal').classList.add('hidden');
+}
+document.getElementById('cancelForm')?.addEventListener('submit', function(e) {
+  const sel = this.querySelector('select[name="cancellation_reason"]');
+  const custom = this.querySelector('textarea[name="cancellation_reason_custom"]');
+  if (sel && sel.value === 'Other') {
+    if (!custom || !custom.value.trim()) {
+      e.preventDefault();
+      showToast('warning', 'Reason Required', 'Please provide a cancellation reason.');
+      return;
+    }
+    const hidden = document.createElement('input');
+    hidden.type = 'hidden';
+    hidden.name = 'cancellation_reason';
+    hidden.value = custom.value.trim();
+    this.appendChild(hidden);
+    sel.removeAttribute('name');
+  }
+});
+document.getElementById('rejectForm')?.addEventListener('submit', function(e) {
+  const sel = this.querySelector('select[name="rejection_reason"]');
+  const custom = this.querySelector('textarea[name="rejection_reason_custom"]');
+  if (sel && sel.value === 'Other') {
+    if (!custom || !custom.value.trim()) {
+      e.preventDefault();
+      showToast('warning', 'Reason Required', 'Please provide a rejection reason.');
+      return;
+    }
+    const hidden = document.createElement('input');
+    hidden.type = 'hidden';
+    hidden.name = 'rejection_reason';
+    hidden.value = custom.value.trim();
+    this.appendChild(hidden);
+    sel.removeAttribute('name');
+  }
+});
+
+function openVideoModal(aptId) {
+  document.getElementById('videoForm').action = `/appointments/update/${aptId}/`;
+  document.getElementById('videoModal').classList.remove('hidden');
+}
+function closeVideoModal() {
+  document.getElementById('videoModal').classList.add('hidden');
+}
+
+document.addEventListener('DOMContentLoaded', () => {
+    if (typeof window.bindJoinVideoButtons === 'function') {
+      window.bindJoinVideoButtons();
+    }
+    if (window.location.search.includes('emergency=1')) {
+      const em = document.getElementById('emergencyModal');
+      if (em) em.classList.remove('hidden');
+    }
+});
+</script>
+{% endblock %}

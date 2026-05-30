@@ -1,0 +1,45 @@
+{% extends 'system_admin/base.html' %}
+{% block page_title %}{{ page_title|default:"Appointments" }}{% endblock %}
+{% block page_subtitle %}{{ page_subtitle }}{% endblock %}
+{% block content %}
+<div class="admin-panel animate-fade-in">
+  <div class="admin-panel-header">
+    {% include 'system_admin/includes/search_filter.html' with search_placeholder='Search patient or doctor...' view_param=view %}
+  </div>
+  <div class="overflow-x-auto">
+    <table class="admin-table">
+      <thead>
+        <tr>
+          <th>Patient</th>
+          <th>Doctor</th>
+          <th>Date</th>
+          <th class="hidden sm:table-cell">Time</th>
+          <th>Status</th>
+          <th class="hidden md:table-cell">Type</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for a in page %}
+        <tr>
+          <td>
+            <a href="{% url 'system_admin_patient_detail' a.patient.id %}" class="font-semibold text-slate-800 hover:text-indigo-600">{{ a.patient.get_full_name }}</a>
+          </td>
+          <td class="text-slate-600">Dr. {{ a.doctor.get_full_name }}</td>
+          <td class="text-slate-600">{{ a.appointment_date|date:"M j, Y" }}</td>
+          <td class="hidden sm:table-cell text-slate-500">{{ a.appointment_time|time:"g:i A"|default:"—" }}</td>
+          <td>
+            <span class="admin-badge {% if a.status == 'completed' %}active{% elif a.status == 'cancelled' %}suspended{% elif a.is_emergency %}suspended{% else %}pending{% endif %}">
+              {% if a.is_emergency %}Emergency{% else %}{{ a.status }}{% endif %}
+            </span>
+          </td>
+          <td class="hidden md:table-cell text-slate-500">{{ a.appointment_type|default:"—" }}</td>
+        </tr>
+        {% empty %}
+        <tr><td colspan="6" class="text-center py-12 text-slate-400">No appointments found.</td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  <div class="admin-panel-body border-t border-slate-100 py-4">{% include 'system_admin/includes/pagination.html' %}</div>
+</div>
+{% endblock %}

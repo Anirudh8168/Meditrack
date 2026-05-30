@@ -1,0 +1,361 @@
+{% extends 'base_dashboard.html' %}
+{% block page_title %}My Patient{% endblock %}
+{% block page_subtitle %}Search, connect, and manage your assigned patient{% endblock %}
+
+{% block content %}
+<form style="display:none">{% csrf_token %}</form>
+<div class="max-w-5xl mx-auto space-y-6">
+
+  <!-- Search Bar -->
+  <div class="bg-white rounded-2xl border border-slate-100 shadow-sm p-5">
+    <label class="block text-sm font-semibold text-slate-700 mb-2">Find Patient</label>
+    <div class="relative">
+      <i class="fas fa-search absolute left-4 top-1/2 -translate-y-1/2 text-slate-400"></i>
+      <input id="patientSearch" type="text" placeholder="Search patient by ID, name, or phone..."
+        class="w-full pl-11 pr-4 py-3 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-teal-500 focus:border-teal-500"
+        {% if active_assignment %}disabled{% endif %}>
+      <div id="searchResults" class="absolute top-full left-0 right-0 mt-1 bg-white rounded-xl shadow-xl border border-slate-200 hidden z-50 max-h-96 overflow-y-auto"></div>
+    </div>
+    {% if active_assignment %}
+    <p class="text-xs text-slate-500 mt-2"><i class="fas fa-info-circle mr-1"></i>Disconnect your current patient to search for another.</p>
+    {% endif %}
+  </div>
+
+  <!-- Pending Request -->
+  {% if pending_assignment and not active_assignment %}
+  <div class="bg-amber-50 border border-amber-200 rounded-2xl p-5">
+    <div class="flex items-center justify-between flex-wrap gap-4">
+      <div class="flex items-center gap-3">
+        <div class="w-11 h-11 bg-amber-100 rounded-xl flex items-center justify-center">
+          <i class="fas fa-clock text-amber-600"></i>
+        </div>
+        <div>
+          <div class="font-semibold text-amber-900 text-sm">Connection Request Pending</div>
+          <div class="text-xs text-amber-700">Waiting for {{ pending_assignment.patient.get_full_name }} to accept</div>
+        </div>
+      </div>
+      <form method="POST">
+        {% csrf_token %}
+        <input type="hidden" name="action" value="cancel_pending">
+        <button type="submit" class="text-xs px-3 py-1.5 border border-amber-300 text-amber-800 rounded-lg hover:bg-amber-100 transition">Cancel Request</button>
+      </form>
+    </div>
+  </div>
+  {% endif %}
+
+  <!-- Connected Patient Card -->
+  {% if active_assignment %}
+  {% with patient=active_assignment.patient %}
+  <div class="bg-white rounded-2xl border border-slate-100 shadow-sm overflow-hidden">
+    <div class="px-6 py-4 border-b border-slate-100 bg-slate-50 flex items-center justify-between">
+      <h2 class="font-bold text-slate-800 text-sm flex items-center gap-2">
+        <i class="fas fa-user-injured text-teal-600"></i> Connected Patient
+      </h2>
+      <span class="text-xs px-2.5 py-1 bg-emerald-100 text-emerald-700 rounded-full font-semibold">Active</span>
+    </div>
+    <div class="p-6">
+      <div class="flex flex-col sm:flex-row sm:items-center gap-5">
+        <div class="w-16 h-16 rounded-2xl bg-gradient-to-br from-teal-500 to-emerald-600 flex items-center justify-center text-white font-bold text-xl flex-shrink-0">
+          {{ patient.first_name|first }}{{ patient.last_name|first }}
+        </div>
+        <div class="flex-1 min-w-0">
+          <h3 class="text-xl font-bold text-slate-800">{{ patient.get_full_name }}</h3>
+          <p class="text-sm text-slate-500 mt-0.5">{{ patient.unique_id }}
+            {% if patient_profile.gender %} · {{ patient_profile.gender|capfirst }}{% endif %}
+            {% if patient_age %} · Age {{ patient_age }}{% endif %}
+          </p>
+          {% if assigned_doctor %}
+          <p class="text-sm text-slate-600 mt-2"><span class="text-slate-400">Assigned Doctor:</span> Dr. {{ assigned_doctor.get_full_name }}</p>
+          {% endif %}
+          {% if active_assignment.approved_at %}
+          <p class="text-xs text-slate-400 mt-1">Connected since {{ active_assignment.approved_at|date:"M j, Y" }}</p>
+          {% endif %}
+        </div>
+        <div class="flex flex-wrap gap-2">
+          <a href="{% url 'caregiver_enter_mode' patient.id %}"
+             class="px-4 py-2.5 bg-teal-600 text-white text-sm font-semibold rounded-xl hover:bg-teal-700 transition flex items-center gap-2">
+            <i class="fas fa-external-link-alt"></i> Patient Dashboard
+          </a>
+          <a href="/messages/?with={{ patient.id }}"
+             class="px-4 py-2.5 bg-white border border-slate-200 text-slate-700 text-sm font-semibold rounded-xl hover:bg-slate-50 transition flex items-center gap-2">
+            <i class="fas fa-comment-alt text-blue-500"></i> Message
+          </a>
+          <button type="button" onclick="openDisconnectModal()"
+             class="px-4 py-2.5 bg-white border border-red-200 text-red-600 text-sm font-semibold rounded-xl hover:bg-red-50 transition flex items-center gap-2">
+            <i class="fas fa-unlink"></i> Disconnect
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Care Tools Grid -->
+  <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+    <!-- Care Notes -->
+    <div class="bg-white rounded-2xl border border-slate-100 shadow-sm p-5">
+      <h3 class="font-bold text-slate-800 text-sm mb-3 flex items-center gap-2">
+        <i class="fas fa-sticky-note text-amber-500"></i> Care Notes
+        <span class="text-xs font-normal text-slate-400">Private</span>
+      </h3>
+      <form method="POST" class="mb-4">
+        {% csrf_token %}
+        <input type="hidden" name="action" value="add_note">
+        <textarea name="note" rows="2" placeholder="Patient skipped medicine. BP slightly high..."
+          class="w-full p-3 text-sm border border-slate-200 rounded-xl focus:ring-2 focus:ring-teal-500 outline-none resize-none"></textarea>
+        <button type="submit" class="mt-2 w-full py-2 bg-slate-800 text-white text-xs font-semibold rounded-lg hover:bg-slate-900 transition">Add Note</button>
+      </form>
+      <div class="space-y-2 max-h-48 overflow-y-auto">
+        {% for note in care_notes %}
+        <div class="p-3 bg-slate-50 rounded-lg text-sm text-slate-700 border border-slate-100">
+          <p>{{ note.note }}</p>
+          <p class="text-[10px] text-slate-400 mt-1">{{ note.created_at|date:"M j, Y g:i A" }}</p>
+        </div>
+        {% empty %}
+        <p class="text-xs text-slate-400 text-center py-3">No care notes yet.</p>
+        {% endfor %}
+      </div>
+    </div>
+
+    <!-- Daily Care Log -->
+    <div class="bg-white rounded-2xl border border-slate-100 shadow-sm p-5">
+      <h3 class="font-bold text-slate-800 text-sm mb-3 flex items-center gap-2">
+        <i class="fas fa-clipboard-list text-blue-500"></i> Daily Care Log
+      </h3>
+      <form method="POST" class="mb-4 space-y-2">
+        {% csrf_token %}
+        <input type="hidden" name="action" value="add_log">
+        <select name="log_type" class="w-full p-2 text-sm border border-slate-200 rounded-lg">
+          <option value="medicine">Morning medicine given</option>
+          <option value="vitals">Vitals checked</option>
+          <option value="doctor_contact">Doctor contacted</option>
+          <option value="appointment">Appointment booked</option>
+          <option value="meals">Meals completed</option>
+          <option value="other">Other</option>
+        </select>
+        <input type="text" name="entry" placeholder="Brief log entry..." required
+          class="w-full p-2 text-sm border border-slate-200 rounded-lg focus:ring-2 focus:ring-teal-500 outline-none">
+        <button type="submit" class="w-full py-2 bg-teal-600 text-white text-xs font-semibold rounded-lg hover:bg-teal-700 transition">Log Entry</button>
+      </form>
+      <div class="space-y-2 max-h-48 overflow-y-auto">
+        {% for log in daily_logs %}
+        <div class="flex items-start gap-2 p-2 rounded-lg bg-slate-50 text-sm">
+          <i class="fas fa-check-circle text-emerald-500 mt-0.5 text-xs"></i>
+          <div>
+            <span class="font-medium text-slate-700">{{ log.get_log_type_display }}</span>
+            <span class="text-slate-500"> — {{ log.entry }}</span>
+            <div class="text-[10px] text-slate-400">{{ log.log_date|date:"M j, Y" }}</div>
+          </div>
+        </div>
+        {% empty %}
+        <p class="text-xs text-slate-400 text-center py-3">No log entries today.</p>
+        {% endfor %}
+      </div>
+    </div>
+
+    <!-- Activity Timeline -->
+    <div class="bg-white rounded-2xl border border-slate-100 shadow-sm p-5">
+      <h3 class="font-bold text-slate-800 text-sm mb-3 flex items-center gap-2">
+        <i class="fas fa-history text-violet-500"></i> Activity Timeline
+      </h3>
+      <div class="space-y-3 max-h-72 overflow-y-auto">
+        {% for item in timeline %}
+        <div class="flex gap-3">
+          <div class="w-2 h-2 rounded-full bg-teal-500 mt-1.5 flex-shrink-0"></div>
+          <div>
+            <p class="text-sm text-slate-700">{{ item.get_action_type_display }}</p>
+            <p class="text-xs text-slate-500">{{ item.description|truncatechars:60 }}</p>
+            <p class="text-[10px] text-slate-400">{{ item.created_at|date:"M j, Y g:i A" }}</p>
+          </div>
+        </div>
+        {% empty %}
+        <p class="text-xs text-slate-400 text-center py-3">No activity recorded yet.</p>
+        {% endfor %}
+      </div>
+    </div>
+  </div>
+  {% endwith %}
+
+  {% elif not pending_assignment %}
+  <!-- Empty State -->
+  <div class="bg-white rounded-2xl border border-dashed border-slate-200 p-12 text-center">
+    <div class="w-14 h-14 bg-slate-100 rounded-2xl flex items-center justify-center mx-auto mb-4">
+      <i class="fas fa-user-plus text-slate-400 text-xl"></i>
+    </div>
+    <h3 class="font-semibold text-slate-700 mb-1">No Patient Connected</h3>
+    <p class="text-sm text-slate-500 max-w-sm mx-auto">Search above by patient ID, name, or phone number to send a connection request.</p>
+  </div>
+  {% endif %}
+
+  <!-- Connection History -->
+  {% if connection_history %}
+  <div class="bg-white rounded-2xl border border-slate-100 shadow-sm p-5">
+    <h3 class="font-bold text-slate-800 text-sm mb-4 flex items-center gap-2">
+      <i class="fas fa-archive text-slate-400"></i> Connection History
+    </h3>
+    <div class="space-y-2">
+      {% for h in connection_history %}
+      <div class="flex items-center justify-between p-3 rounded-xl bg-slate-50 text-sm">
+        <div>
+          <span class="font-medium text-slate-800">{{ h.patient.get_full_name }}</span>
+          <span class="text-xs text-slate-400 ml-2">{{ h.get_status_display }}</span>
+        </div>
+        <div class="text-xs text-slate-500 text-right">
+          {% if h.disconnected_at %}
+          <div>Disconnected by: {% if h.disconnected_by.role == 'doctor' %}Doctor{% elif h.disconnected_by.role == 'caregiver' %}Caregiver{% else %}Admin{% endif %}</div>
+          <div>Reason: {{ h.disconnect_reason|default:"—" }}</div>
+          <div>{{ h.disconnected_at|date:"M j, Y" }}</div>
+          {% elif h.rejected_at %}
+          <div>Rejected {{ h.rejected_at|date:"M j, Y" }}</div>
+          {% if h.rejection_reason %}<div>Reason: {{ h.rejection_reason }}</div>{% endif %}
+          {% elif h.approved_at %}
+          <div>Connected {{ h.approved_at|date:"M j, Y" }}</div>
+          {% endif %}
+        </div>
+      </div>
+      {% endfor %}
+    </div>
+  </div>
+  {% endif %}
+</div>
+
+<!-- Already Connected Modal -->
+<div id="alreadyConnectedModal" class="fixed inset-0 z-[200] hidden items-center justify-center p-4">
+  <div class="absolute inset-0 bg-slate-900/50" onclick="closeAlreadyConnectedModal()"></div>
+  <div class="relative bg-white rounded-2xl shadow-2xl max-w-md w-full p-6">
+    <h3 class="text-lg font-bold text-slate-800 mb-2">Patient Already Connected</h3>
+    <p class="text-sm text-slate-600 mb-1">You are already connected with:</p>
+    <p id="blockedPatientName" class="font-semibold text-teal-700 mb-3"></p>
+    <p class="text-sm text-slate-500 mb-6">Disconnect current patient before connecting another patient.</p>
+    <div class="flex gap-3">
+      <a id="viewPatientBtn" href="#" class="flex-1 py-2.5 bg-teal-600 text-white text-sm font-semibold rounded-xl text-center hover:bg-teal-700 transition">View Patient</a>
+      <button type="button" onclick="closeAlreadyConnectedModal()" class="flex-1 py-2.5 border border-slate-200 text-slate-700 text-sm font-semibold rounded-xl hover:bg-slate-50 transition">Close</button>
+    </div>
+  </div>
+</div>
+
+<!-- Disconnect Modal -->
+{% if active_assignment %}
+<div id="disconnectModal" class="fixed inset-0 z-[200] hidden items-center justify-center p-4">
+  <div class="absolute inset-0 bg-slate-900/50" onclick="closeDisconnectModal()"></div>
+  <div class="relative bg-white rounded-2xl shadow-2xl max-w-md w-full p-6">
+    <h3 class="text-lg font-bold text-slate-800 mb-1">Disconnect Patient?</h3>
+    <p class="text-sm text-slate-500 mb-4">Please provide reason for disconnecting.</p>
+    <form method="POST" action="{% url 'disconnect_caregiver' active_assignment.id %}">
+      {% csrf_token %}
+      <label class="block text-sm font-medium text-slate-700 mb-1">Reason <span class="text-red-500">*</span></label>
+      <select name="reason" required class="w-full p-3 border border-slate-200 rounded-xl text-sm mb-3 focus:ring-2 focus:ring-red-500 outline-none">
+        <option value="">Select a reason...</option>
+        {% for r in disconnect_reasons %}
+        <option value="{{ r }}">{{ r }}</option>
+        {% endfor %}
+      </select>
+      <textarea name="reason_detail" rows="2" placeholder="Additional details (optional)"
+        class="w-full p-3 border border-slate-200 rounded-xl text-sm mb-4 outline-none resize-none"></textarea>
+      <div class="flex gap-3">
+        <button type="button" onclick="closeDisconnectModal()" class="flex-1 py-2.5 border border-slate-200 text-slate-700 text-sm font-semibold rounded-xl hover:bg-slate-50 transition">Cancel</button>
+        <button type="submit" class="flex-1 py-2.5 bg-red-600 text-white text-sm font-semibold rounded-xl hover:bg-red-700 transition">Disconnect</button>
+      </div>
+    </form>
+  </div>
+</div>
+{% endif %}
+
+<script>
+const searchInput = document.getElementById('patientSearch');
+const searchResults = document.getElementById('searchResults');
+let searchTimer;
+
+if (searchInput) {
+  searchInput.addEventListener('input', function() {
+    clearTimeout(searchTimer);
+    const q = this.value.trim();
+    if (q.length < 2) { searchResults.classList.add('hidden'); return; }
+    searchTimer = setTimeout(() => {
+      fetch(`{% url 'caregiver_search_patients' %}?q=${encodeURIComponent(q)}`)
+        .then(r => r.json())
+        .then(data => {
+          if (data.blocked) {
+            document.getElementById('blockedPatientName').textContent = data.message;
+            document.getElementById('alreadyConnectedModal').classList.remove('hidden');
+            document.getElementById('alreadyConnectedModal').classList.add('flex');
+            searchResults.classList.add('hidden');
+            return;
+          }
+          if (!data.results.length) {
+            searchResults.innerHTML = '<div class="p-4 text-sm text-slate-500 text-center">No patients found</div>';
+          } else {
+            searchResults.innerHTML = data.results.map(r => {
+              const meta = [r.gender, r.age ? 'Age ' + r.age : ''].filter(Boolean).join(' · ');
+              const statusBtn = r.connection_status === 'pending'
+                ? '<span class="text-xs bg-amber-100 text-amber-700 px-2.5 py-1 rounded-full font-medium">Pending</span>'
+                : r.connection_status === 'active'
+                ? '<span class="text-xs bg-emerald-100 text-emerald-700 px-2.5 py-1 rounded-full font-medium">Connected</span>'
+                : `<button onclick="sendCaregiverRequest(${r.id}, this)" class="text-xs bg-teal-600 text-white px-3 py-1.5 rounded-lg hover:bg-teal-700 font-semibold transition">Send Connection Request</button>`;
+              return `<div class="p-4 border-b border-slate-100 last:border-0 hover:bg-slate-50">
+                <div class="flex items-start justify-between gap-3">
+                  <div>
+                    <div class="font-semibold text-slate-800">${r.name}</div>
+                    <div class="text-xs text-slate-500">${r.unique_id}${meta ? ' · ' + meta : ''}</div>
+                    ${r.doctor_name ? `<div class="text-xs text-slate-500 mt-1">Assigned Doctor: ${r.doctor_name}</div>` : ''}
+                  </div>
+                  ${statusBtn}
+                </div>
+              </div>`;
+            }).join('');
+          }
+          searchResults.classList.remove('hidden');
+        });
+    }, 300);
+  });
+  document.addEventListener('click', e => {
+    if (!searchInput.contains(e.target) && !searchResults.contains(e.target)) {
+      searchResults.classList.add('hidden');
+    }
+  });
+}
+
+function sendCaregiverRequest(patientId, btn) {
+  const csrf = document.querySelector('[name=csrfmiddlewaretoken]').value;
+  fetch('{% url "caregiver_send_request" %}', {
+    method: 'POST',
+    headers: {'Content-Type': 'application/x-www-form-urlencoded', 'X-CSRFToken': csrf},
+    body: `patient_id=${patientId}`
+  }).then(r => r.json()).then(data => {
+    if (data.success) {
+      btn.outerHTML = '<span class="text-xs bg-amber-100 text-amber-700 px-2.5 py-1 rounded-full font-medium">Pending</span>';
+      showToast(data.message, 'success');
+      setTimeout(() => location.reload(), 1500);
+    } else if (data.error === 'already_connected') {
+      document.getElementById('blockedPatientName').textContent = data.patient_name;
+      document.getElementById('viewPatientBtn').href = `/dashboard/caregiver/enter-mode/${data.patient_id}/`;
+      document.getElementById('alreadyConnectedModal').classList.remove('hidden');
+      document.getElementById('alreadyConnectedModal').classList.add('flex');
+    } else {
+      showToast(data.error || data.message || 'Request failed', 'error');
+    }
+  });
+}
+
+function closeAlreadyConnectedModal() {
+  document.getElementById('alreadyConnectedModal').classList.add('hidden');
+  document.getElementById('alreadyConnectedModal').classList.remove('flex');
+}
+
+function openDisconnectModal() {
+  document.getElementById('disconnectModal').classList.remove('hidden');
+  document.getElementById('disconnectModal').classList.add('flex');
+}
+function closeDisconnectModal() {
+  document.getElementById('disconnectModal').classList.add('hidden');
+  document.getElementById('disconnectModal').classList.remove('flex');
+}
+
+function showToast(msg, type) {
+  const t = document.createElement('div');
+  t.className = `fixed bottom-6 right-6 z-[9999] px-5 py-3 rounded-xl shadow-xl text-white text-sm font-medium ${type === 'success' ? 'bg-emerald-600' : 'bg-red-600'}`;
+  t.textContent = msg;
+  document.body.appendChild(t);
+  setTimeout(() => t.remove(), 3500);
+}
+</script>
+{% endblock %}

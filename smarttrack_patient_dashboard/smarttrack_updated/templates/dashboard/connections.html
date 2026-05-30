@@ -1,0 +1,116 @@
+{% extends 'base_dashboard.html' %}
+{% block title %}Connections{% endblock %}
+{% block page_title %}{% if user.role == 'doctor' %}My Patients{% else %}My Doctors{% endif %}{% endblock %}
+{% block page_subtitle %}Manage your healthcare connections{% endblock %}
+{% block content %}
+<form style="display:none">{% csrf_token %}</form>
+<!-- Pending Requests -->
+{% if pending_received %}
+<div class="bg-blue-50 border border-blue-200 rounded-2xl p-6 mb-6">
+  <h3 class="font-bold text-blue-800 mb-4 flex items-center gap-2"><i class="fas fa-user-plus text-blue-600"></i> Pending Requests ({{ pending_received.count }})</h3>
+  <div class="space-y-3">
+    {% for conn in pending_received %}
+    <div class="bg-white rounded-xl p-4 flex items-center gap-4 shadow-sm">
+      <div class="w-12 h-12 bg-gradient-to-br from-blue-500 to-violet-600 rounded-xl flex items-center justify-center text-white font-bold flex-shrink-0">
+        {% if user.role == 'doctor' %}{{ conn.patient.first_name|first }}{{ conn.patient.last_name|first }}
+        {% else %}{{ conn.doctor.first_name|first }}{{ conn.doctor.last_name|first }}{% endif %}
+      </div>
+      <div class="flex-1 min-w-0">
+        <div class="font-bold text-slate-800">
+          {% if user.role == 'doctor' %}{{ conn.patient.get_full_name }}{% else %}Dr. {{ conn.doctor.get_full_name }}{% endif %}
+        </div>
+        <div class="text-xs text-slate-500">
+          {% if user.role == 'doctor' %}Patient · {{ conn.patient.unique_id }}{% else %}{{ conn.doctor.unique_id }}{% endif %}
+        </div>
+        {% if conn.request_message %}<div class="text-xs text-slate-600 mt-1 italic">"{{ conn.request_message }}"</div>{% endif %}
+      </div>
+      <div class="flex gap-2 flex-shrink-0">
+        <form method="POST" action="/connections/respond/{{ conn.id }}/" style="display:inline">
+          {% csrf_token %}<input type="hidden" name="action" value="accept">
+          <button type="submit" class="px-4 py-2 bg-emerald-600 text-white text-sm rounded-xl hover:bg-emerald-700 font-semibold"><i class="fas fa-check mr-1"></i>Accept</button>
+        </form>
+        <form method="POST" action="/connections/respond/{{ conn.id }}/" style="display:inline">
+          {% csrf_token %}<input type="hidden" name="action" value="reject">
+          <button type="submit" class="px-4 py-2 bg-red-100 text-red-700 text-sm rounded-xl hover:bg-red-200 font-semibold"><i class="fas fa-times mr-1"></i>Reject</button>
+        </form>
+      </div>
+    </div>
+    {% endfor %}
+  </div>
+</div>
+{% endif %}
+
+<!-- Connected -->
+<div class="bg-white rounded-2xl shadow-sm border border-slate-100 p-6 mb-6">
+  <h3 class="font-bold text-slate-800 mb-4 flex items-center gap-2">
+    <i class="fas fa-users text-emerald-500"></i>
+    Connected {% if user.role == 'doctor' %}Patients{% else %}Doctors{% endif %} ({{ accepted.count }})
+  </h3>
+  {% if accepted %}
+  <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+    {% for conn in accepted %}
+    <div class="flex items-center gap-4 p-4 rounded-xl border border-slate-100 hover:bg-slate-50 transition">
+      <div class="w-12 h-12 {% if user.role == 'doctor' %}bg-gradient-to-br from-emerald-400 to-teal-500{% else %}bg-gradient-to-br from-blue-500 to-violet-600{% endif %} rounded-xl flex items-center justify-center text-white font-bold flex-shrink-0">
+        {% if user.role == 'doctor' %}{{ conn.patient.first_name|first }}{{ conn.patient.last_name|first }}
+        {% else %}{{ conn.doctor.first_name|first }}{{ conn.doctor.last_name|first }}{% endif %}
+      </div>
+      <div class="flex-1 min-w-0">
+        <div class="font-bold text-slate-800 truncate">
+          {% if user.role == 'doctor' %}{{ conn.patient.get_full_name }}{% else %}Dr. {{ conn.doctor.get_full_name }}{% endif %}
+        </div>
+        <div class="text-xs text-slate-500">
+          {% if user.role == 'doctor' %}{{ conn.patient.unique_id }}{% else %}{{ conn.doctor.unique_id }}
+          {% if conn.doctor.doctor_profile.specialty %} · {{ conn.doctor.doctor_profile.get_specialty_display }}{% endif %}
+          {% endif %}
+        </div>
+        <div class="text-xs text-emerald-600 mt-0.5"><i class="fas fa-circle text-emerald-500 text-[6px] mr-1"></i>Connected since {{ conn.created_at|date:"M j, Y" }}</div>
+        {% if user.role == 'doctor' and conn.active_caregiver %}
+        <div class="text-xs text-teal-700 mt-1 flex items-center gap-1">
+          <i class="fas fa-hospital-user text-teal-500"></i>
+          CG: {{ conn.active_caregiver.caregiver_name }} · {{ conn.active_caregiver.role_display }}
+        </div>
+        {% elif user.role == 'doctor' %}
+        <div class="text-xs text-slate-400 mt-1">No caregiver assigned</div>
+        {% endif %}
+      </div>
+      <div class="flex gap-2 flex-shrink-0">
+        {% if user.role == 'doctor' %}
+        <a href="/dashboard/doctor/patient/{{ conn.patient.id }}/" class="p-2 bg-blue-100 text-blue-700 rounded-lg hover:bg-blue-200 transition" title="View patient"><i class="fas fa-eye text-sm"></i></a>
+        {% endif %}
+        <a href="/messages/?with={% if user.role == 'doctor' %}{{ conn.patient.id }}{% else %}{{ conn.doctor.id }}{% endif %}" class="p-2 bg-violet-100 text-violet-700 rounded-lg hover:bg-violet-200 transition" title="Send message"><i class="fas fa-comment text-sm"></i></a>
+      </div>
+    </div>
+    {% endfor %}
+  </div>
+  {% else %}
+  <div class="text-center py-8 text-slate-400">
+    <i class="fas fa-user-friends text-4xl mb-3 opacity-20 block"></i>
+    <p class="text-sm">No connections yet</p>
+    <p class="text-xs mt-1">Use the search bar above to find {% if user.role == 'patient' %}doctors{% else %}patients{% endif %}</p>
+  </div>
+  {% endif %}
+</div>
+
+<!-- Sent Requests -->
+{% if pending_sent %}
+<div class="bg-white rounded-2xl shadow-sm border border-slate-100 p-6">
+  <h3 class="font-bold text-slate-800 mb-4 flex items-center gap-2"><i class="fas fa-paper-plane text-amber-500"></i> Sent Requests ({{ pending_sent.count }})</h3>
+  <div class="space-y-3">
+    {% for conn in pending_sent %}
+    <div class="flex items-center gap-4 p-3 rounded-xl border border-amber-100 bg-amber-50">
+      <div class="w-10 h-10 bg-amber-200 rounded-xl flex items-center justify-center flex-shrink-0">
+        <i class="fas fa-clock text-amber-600"></i>
+      </div>
+      <div class="flex-1">
+        <div class="font-semibold text-slate-800 text-sm">
+          {% if user.role == 'patient' %}Dr. {{ conn.doctor.get_full_name }}{% else %}{{ conn.patient.get_full_name }}{% endif %}
+        </div>
+        <div class="text-xs text-amber-600">Pending · Sent {{ conn.created_at|date:"M j, Y" }}</div>
+      </div>
+      <span class="text-xs bg-amber-100 text-amber-700 px-2 py-1 rounded-full font-medium">Awaiting response</span>
+    </div>
+    {% endfor %}
+  </div>
+</div>
+{% endif %}
+{% endblock %}

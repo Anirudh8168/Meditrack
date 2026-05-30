@@ -1,0 +1,77 @@
+{% extends 'base_dashboard.html' %}
+{% block title %}Refill Medicine{% endblock %}
+{% block page_title %}{% if medicine.total_refilled_quantity %}Refill Medicine{% else %}Add Medicine Purchase{% endif %}{% endblock %}
+{% block page_subtitle %}{% if medicine.total_refilled_quantity %}Update your medicine stock{% else %}Confirm your pharmacy purchase{% endif %}{% endblock %}
+{% block content %}
+<div class="max-w-md mx-auto">
+  <a href="/medicines/" class="inline-flex items-center gap-2 text-sm text-slate-500 hover:text-slate-800 mb-5">
+    <i class="fas fa-arrow-left"></i> Back to Medicines
+  </a>
+  {% if messages %}{% for m in messages %}
+  <div class="mb-4 p-3 rounded-xl {% if m.tags == 'warning' %}bg-amber-50 text-amber-800 border border-amber-200{% elif m.tags == 'error' %}bg-red-50 text-red-700 border border-red-200{% else %}bg-emerald-50 text-emerald-700 border border-emerald-200{% endif %} text-sm">{{ m }}</div>
+  {% endfor %}{% endif %}
+
+  <div class="bg-white rounded-2xl shadow-sm border border-slate-100 p-6">
+    <div class="flex items-center gap-3 mb-5 pb-5 border-b border-slate-100">
+      <div class="w-11 h-11 bg-emerald-100 rounded-xl flex items-center justify-center flex-shrink-0">
+        <i class="fas fa-capsules text-emerald-600"></i>
+      </div>
+      <div>
+        <div class="text-xs text-slate-500">Available stock</div>
+        <div class="text-lg font-black text-slate-800">{{ medicine.stock_quantity }} <span class="text-sm font-normal text-slate-500">doses</span></div>
+        <div class="text-xs text-slate-400 mt-0.5">Purchased: {{ medicine.total_refilled_quantity|default:0 }} / {{ medicine.prescribed_quantity|default:0 }} prescribed</div>
+      </div>
+    </div>
+
+    <form method="POST" class="space-y-4">
+      {% csrf_token %}
+      <div>
+        <label class="block text-sm font-medium text-slate-700 mb-1.5">Medicine Name</label>
+        <input type="text" value="{{ medicine.name }}" readonly
+               class="w-full px-4 py-2.5 border border-slate-200 rounded-xl bg-slate-50 text-sm text-slate-700 font-medium">
+      </div>
+      <div>
+        <label class="block text-sm font-medium text-slate-700 mb-1.5">Prescribed Quantity</label>
+        <input type="text" value="{{ medicine.prescribed_quantity|default:'—' }} doses" readonly
+               class="w-full px-4 py-2.5 border border-slate-200 rounded-xl bg-slate-50 text-sm text-slate-600">
+      </div>
+      <div>
+        <label class="block text-sm font-medium text-slate-700 mb-1.5">Dosage</label>
+        <input type="text" value="{{ medicine.dosage }}" readonly
+               class="w-full px-4 py-2.5 border border-slate-200 rounded-xl bg-slate-50 text-sm text-slate-600">
+      </div>
+      <div>
+        <label class="block text-sm font-medium text-slate-700 mb-1.5">Quantity Purchased <span class="text-red-500">*</span></label>
+        <input type="number" name="quantity_purchased" required min="1" placeholder="e.g. 30" autofocus
+               class="w-full px-4 py-2.5 border border-slate-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-emerald-500 text-sm">
+      </div>
+      <div>
+        <label class="block text-sm font-medium text-slate-700 mb-1.5">Purchase Date <span class="text-red-500">*</span></label>
+        <input type="date" name="purchase_date" required
+               class="w-full px-4 py-2.5 border border-slate-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-emerald-500 text-sm">
+      </div>
+      <div>
+        <label class="block text-sm font-medium text-slate-700 mb-1.5">Pharmacy Name <span class="text-slate-400 text-xs">(optional)</span></label>
+        <input type="text" name="pharmacy_name" placeholder="e.g. Apollo Pharmacy"
+               class="w-full px-4 py-2.5 border border-slate-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-emerald-500 text-sm">
+      </div>
+      <div>
+        <label class="block text-sm font-medium text-slate-700 mb-1.5">Notes <span class="text-slate-400 text-xs">(optional)</span></label>
+        <textarea name="notes" rows="2" placeholder="Optional notes about this purchase"
+                  class="w-full px-4 py-2.5 border border-slate-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-emerald-500 text-sm resize-none"></textarea>
+      </div>
+      <div class="flex gap-3 pt-2">
+        <button type="submit" class="flex-1 px-4 py-2.5 bg-emerald-600 text-white rounded-xl font-semibold hover:bg-emerald-700 transition text-sm">
+          {% if medicine.total_refilled_quantity %}Save Refill{% else %}Save Purchase{% endif %}
+        </button>
+        <a href="/medicines/" class="px-4 py-2.5 bg-slate-100 text-slate-700 rounded-xl font-semibold hover:bg-slate-200 transition text-sm text-center">
+          Cancel
+        </a>
+      </div>
+    </form>
+  </div>
+</div>
+<script>
+  document.querySelector('[name=purchase_date]').value = new Date().toISOString().slice(0, 10);
+</script>
+{% endblock %}

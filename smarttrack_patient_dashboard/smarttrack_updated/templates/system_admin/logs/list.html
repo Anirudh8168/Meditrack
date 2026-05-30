@@ -1,0 +1,8 @@
+{% extends 'system_admin/base.html' %}
+{% block content %}
+<div class="bg-white rounded-2xl border shadow-sm overflow-hidden">
+  <table class="w-full text-sm"><thead><tr class="bg-slate-50 text-xs uppercase"><th class="px-5 py-3 text-left">Time</th><th class="px-4 py-3">Admin</th><th class="px-4 py-3">Action</th><th class="px-4 py-3">Description</th><th class="px-4 py-3">IP</th></tr></thead>
+  <tbody>{% for log in page %}<tr class="border-b"><td class="px-5 py-3">{{ log.created_at|date:"M j, H:i" }}</td><td class="px-4 py-3">{% if log.admin_user %}{{ log.admin_user.email }}{% else %}—{% endif %}</td><td class="px-4 py-3">{{ log.get_action_display }}</td><td class="px-4 py-3">{{ log.description|truncatechars:60 }}</td><td class="px-4 py-3">{{ log.ip_address|default:"—" }}</td></tr>{% empty %}<tr><td colspan="5" class="py-10 text-center text-slate-400">No logs yet.</td></tr>{% endfor %}</tbody></table>
+  <div class="p-5">{% include 'system_admin/includes/pagination.html' %}</div>
+</div>
+{% endblock %}

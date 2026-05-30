@@ -1,0 +1,63 @@
+{% extends 'system_admin/base.html' %}
+{% block page_title %}{{ page_title|default:"Patient Management" }}{% endblock %}
+{% block page_subtitle %}{{ page_subtitle|default:"Manage registered patients" }}{% endblock %}
+{% block content %}
+<div class="admin-panel animate-fade-in">
+  <div class="admin-panel-header">
+    {% include 'system_admin/includes/search_filter.html' with search_placeholder='Search name, email, phone, patient ID...' filter_type='patient' %}
+  </div>
+  <div class="overflow-x-auto">
+    <table class="admin-table">
+      <thead>
+        <tr>
+          <th>Patient</th>
+          <th>Patient ID</th>
+          <th>Phone</th>
+          <th class="hidden md:table-cell">Assigned Doctor</th>
+          <th class="hidden lg:table-cell">Caregiver</th>
+          <th>Status</th>
+          <th class="hidden sm:table-cell">Joined Date</th>
+          <th class="admin-table-actions">Actions</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for p in page %}
+        {% url 'system_admin_patient_detail' p.id as patient_view_url %}
+        {% url 'system_admin_patient_edit' p.id as patient_edit_url %}
+        {% url 'system_admin_patient_delete' p.id as patient_delete_url %}
+        <tr>
+          <td>
+            <div class="font-semibold text-slate-800">{{ p.get_full_name }}</div>
+            <div class="text-xs text-slate-400">{{ p.email }}</div>
+          </td>
+          <td class="text-slate-500 font-mono text-xs">{{ p.unique_id }}</td>
+          <td class="text-slate-600">{{ p.phone|default:"—" }}</td>
+          <td class="hidden md:table-cell text-slate-600">
+            {% if p.assigned_doctor %}Dr. {{ p.assigned_doctor.get_full_name }}{% else %}<span class="text-slate-400">—</span>{% endif %}
+          </td>
+          <td class="hidden lg:table-cell text-slate-600">
+            {% if p.assigned_caregiver %}{{ p.assigned_caregiver.get_full_name }}{% else %}<span class="text-slate-400">—</span>{% endif %}
+          </td>
+          <td>
+            {% if not p.is_active %}
+            <span class="admin-badge suspended">Suspended</span>
+            {% elif not p.profile_completed %}
+            <span class="admin-badge inactive">Inactive</span>
+            {% else %}
+            <span class="admin-badge active">Active</span>
+            {% endif %}
+          </td>
+          <td class="hidden sm:table-cell text-slate-500">{{ p.date_joined|date:"M j, Y" }}</td>
+          <td class="admin-table-actions">
+            {% include 'system_admin/includes/table_actions.html' with view_url=patient_view_url edit_url=patient_edit_url delete_url=patient_delete_url delete_name=p.get_full_name %}
+          </td>
+        </tr>
+        {% empty %}
+        <tr><td colspan="8" class="text-center py-12 text-slate-400">No patients found.</td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  <div class="admin-panel-body border-t border-slate-100 py-4">{% include 'system_admin/includes/pagination.html' %}</div>
+</div>
+{% endblock %}

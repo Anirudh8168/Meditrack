@@ -1,0 +1,51 @@
+{% extends 'system_admin/base.html' %}
+{% block page_title %}{{ page_title }}{% endblock %}
+{% block page_subtitle %}{{ page_subtitle }}{% endblock %}
+{% block content %}
+<div class="admin-form-panel animate-fade-in">
+  <div class="admin-panel">
+    <div class="admin-panel-header">
+      <h3 class="font-bold text-slate-800 text-sm">{% if editing %}Edit Caregiver{% else %}Add Caregiver{% endif %}</h3>
+      {% if editing %}<a href="{% url 'system_admin_caregiver_detail' caregiver.id %}" class="text-sm text-slate-500 hover:text-slate-700"><i class="fas fa-arrow-left mr-1"></i> Cancel</a>{% endif %}
+    </div>
+    <form method="POST" enctype="multipart/form-data" class="admin-panel-body space-y-5">{% csrf_token %}
+      <div class="admin-form-grid">
+        <div><label class="admin-form-label">First Name</label><input name="first_name" value="{{ caregiver.first_name|default:'' }}" required class="admin-input w-full"></div>
+        <div><label class="admin-form-label">Last Name</label><input name="last_name" value="{{ caregiver.last_name|default:'' }}" required class="admin-input w-full"></div>
+        <div><label class="admin-form-label">Email</label><input name="email" type="email" value="{{ caregiver.email|default:'' }}" required class="admin-input w-full"></div>
+        <div><label class="admin-form-label">Phone</label><input name="phone" value="{{ caregiver.phone|default:'' }}" class="admin-input w-full"></div>
+        {% if not editing %}<div><label class="admin-form-label">Password</label><input name="password" type="password" class="admin-input w-full" placeholder="Default: SmartTrack@123"></div>{% endif %}
+        <div>
+          <label class="admin-form-label">Caregiver Type</label>
+          <select name="caregiver_type" class="admin-input w-full">
+            <option value="personal" {% if profile and profile.caregiver_type == 'personal' %}selected{% endif %}>Personal Caregiver</option>
+            <option value="family" {% if profile and profile.caregiver_type == 'family' %}selected{% endif %}>Family Caregiver</option>
+            <option value="hospital" {% if profile and profile.caregiver_type == 'hospital' %}selected{% endif %}>Hospital Caregiver</option>
+            <option value="nursing" {% if profile and profile.caregiver_type == 'nursing' %}selected{% endif %}>Nursing Caregiver</option>
+            <option value="home_nurse" {% if profile and profile.caregiver_type == 'home_nurse' %}selected{% endif %}>Home Nurse</option>
+            <option value="other" {% if profile and profile.caregiver_type == 'other' %}selected{% endif %}>Other</option>
+          </select>
+        </div>
+        <div><label class="admin-form-label">Organization / Hospital</label><input name="hospital_name" value="{% if profile %}{{ profile.hospital_name }}{% endif %}" class="admin-input w-full"></div>
+        <div>
+          <label class="admin-form-label">Assigned Patient</label>
+          <select name="assigned_patient" class="admin-input w-full">
+            <option value="">— None —</option>
+            {% for p in patients %}
+            <option value="{{ p.id }}" {% if current_patient == p.id %}selected{% endif %}>{{ p.get_full_name }}</option>
+            {% endfor %}
+          </select>
+        </div>
+        <div><label class="admin-form-label">Profile Photo</label><input name="profile_photo" type="file" accept="image/*" class="admin-input w-full text-sm"></div>
+        {% if editing %}
+        <div class="col-span-2 flex items-center gap-2 pt-1">
+          <input type="checkbox" name="is_active" id="cg_active" {% if caregiver.is_active %}checked{% endif %}>
+          <label for="cg_active" class="text-sm font-medium text-slate-700">Account Active</label>
+        </div>
+        {% endif %}
+      </div>
+      <button type="submit" class="admin-btn-primary"><i class="fas fa-save mr-1"></i> {% if editing %}Save Changes{% else %}Create Caregiver{% endif %}</button>
+    </form>
+  </div>
+</div>
+{% endblock %}

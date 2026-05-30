@@ -1,0 +1,136 @@
+{% load static %}
+<aside id="sidebar" class="fixed left-0 top-0 h-full w-64 bg-gradient-to-b from-slate-900 to-slate-800 text-white z-50 transition-transform duration-300 flex flex-col shadow-2xl">
+  <div class="p-6 border-b border-slate-700">
+    <div class="flex items-center gap-3">
+      <div class="w-10 h-10 bg-gradient-to-br from-blue-500 to-violet-600 rounded-xl flex items-center justify-center shadow-lg">
+        <i class="fas fa-heartbeat text-white text-lg"></i>
+      </div>
+      <div>
+        <div class="font-bold text-lg leading-tight">SmartTrack</div>
+        <div class="text-xs text-slate-400">Healthcare Management</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="p-4 border-b border-slate-700">
+    <div class="flex items-center gap-3">
+      {% if user.role == 'doctor' %}
+        {% if user.doctor_profile.profile_photo %}
+          <img src="{{ user.doctor_profile.profile_photo.url }}" alt="" class="w-10 h-10 rounded-xl object-cover">
+        {% else %}
+          <div class="w-10 h-10 rounded-xl bg-gradient-to-br from-blue-500 to-violet-600 flex items-center justify-center text-sm font-bold">{{ user.first_name|first }}{{ user.last_name|first }}</div>
+        {% endif %}
+      {% elif user.role == 'patient' %}
+        {% if user.patient_profile.profile_photo %}
+          <img src="{{ user.patient_profile.profile_photo.url }}" alt="" class="w-10 h-10 rounded-xl object-cover">
+        {% else %}
+          <div class="w-10 h-10 rounded-xl bg-gradient-to-br from-emerald-500 to-teal-600 flex items-center justify-center text-sm font-bold">{{ user.first_name|first }}{{ user.last_name|first }}</div>
+        {% endif %}
+      {% else %}
+        <div class="w-10 h-10 rounded-xl bg-gradient-to-br from-amber-500 to-orange-600 flex items-center justify-center text-sm font-bold">{{ user.first_name|first }}{{ user.last_name|first }}</div>
+      {% endif %}
+      <div class="min-w-0">
+        <div class="font-semibold text-sm truncate">{% if user.role == 'doctor' %}Dr. {% endif %}{{ user.get_full_name }}</div>
+        <div class="text-xs text-slate-400">{{ user.unique_id }} · <span class="capitalize">{{ user.get_role_display }}</span></div>
+      </div>
+    </div>
+  </div>
+
+  <nav class="flex-1 overflow-y-auto py-4 px-3 space-y-0.5">
+    {% if user.role == 'patient' %}
+    <div class="text-xs font-semibold text-slate-500 uppercase tracking-wider px-3 mb-2">Main</div>
+    <a href="/dashboard/patient/" class="sidebar-link {% if sidebar_active == 'dashboard' %}active{% endif %}"><i class="fas fa-home w-5"></i><span>Dashboard</span></a>
+    <a href="/medicines/" class="sidebar-link {% if sidebar_active == 'medicines' %}active{% endif %}"><i class="fas fa-pills w-5"></i><span>My Medicines</span></a>
+    <a href="/appointments/" class="sidebar-link {% if sidebar_active == 'appointments' %}active{% endif %}"><i class="fas fa-calendar-check w-5"></i><span>Appointments</span></a>
+    <a href="/appointments/book/" class="sidebar-link {% if sidebar_active == 'book_appointment' %}active{% endif %}"><i class="fas fa-calendar-plus w-5"></i><span>Book Appointment</span></a>
+
+    <div class="text-xs font-semibold text-slate-500 uppercase tracking-wider px-3 mb-2 mt-4">Health</div>
+    <a href="/medicines/analytics/" class="sidebar-link {% if sidebar_active == 'health_analytics' %}active{% endif %}"><i class="fas fa-chart-line w-5"></i><span>Health Analytics</span></a>
+    <a href="/medicines/activities/" class="sidebar-link {% if sidebar_active == 'activities' %}active{% endif %}"><i class="fas fa-running w-5"></i><span>Activities</span></a>
+    <a href="/medicines/family-contacts/" class="sidebar-link {% if sidebar_active == 'family_contacts' %}active{% endif %}"><i class="fas fa-users w-5"></i><span>Family Contacts</span></a>
+    <a href="/reports/" class="sidebar-link {% if sidebar_active == 'reports' %}active{% endif %}"><i class="fas fa-file-medical w-5"></i><span>Health Reports</span></a>
+    <a href="{% url 'payment_history' %}" class="sidebar-link {% if sidebar_active == 'payments' %}active{% endif %}"><i class="fas fa-receipt w-5"></i><span>Payment History</span></a>
+
+    <div class="text-xs font-semibold text-slate-500 uppercase tracking-wider px-3 mb-2 mt-4">Connect</div>
+    <a href="/connections/list/" class="sidebar-link {% if sidebar_active == 'connections' %}active{% endif %}"><i class="fas fa-user-doctor w-5"></i><span>My Doctors</span></a>
+    <a href="/messages/" class="sidebar-link {% if sidebar_active == 'messages' %}active{% endif %}">
+      <i class="fas fa-comments w-5"></i><span>Messages</span>
+      <span id="sidebarMsgBadge" class="ml-auto bg-red-500 text-white text-xs px-1.5 py-0.5 rounded-full hidden"></span>
+    </a>
+    <a href="/notifications/" class="sidebar-link {% if sidebar_active == 'notifications' %}active{% endif %}"><i class="fas fa-bell w-5"></i><span>Notifications</span>{% if unread_count %}<span class="ml-auto bg-red-500 text-white text-xs px-1.5 py-0.5 rounded-full">{{ unread_count }}</span>{% endif %}</a>
+
+    {% elif user.role == 'doctor' %}
+    <div class="text-xs font-semibold text-slate-500 uppercase tracking-wider px-3 mb-2">Main</div>
+    <a href="/dashboard/doctor/" class="sidebar-link {% if sidebar_active == 'dashboard' %}active{% endif %}"><i class="fas fa-home w-5"></i><span>Dashboard</span></a>
+    <a href="/connections/list/" class="sidebar-link {% if sidebar_active == 'patients' %}active{% endif %}"><i class="fas fa-users w-5"></i><span>My Patients</span></a>
+    <a href="/appointments/" class="sidebar-link {% if sidebar_active == 'appointments' %}active{% endif %}"><i class="fas fa-calendar-check w-5"></i><span>Appointments</span></a>
+    <a href="/appointments/book/" class="sidebar-link {% if sidebar_active == 'book_appointment' %}active{% endif %}"><i class="fas fa-calendar-plus w-5"></i><span>Book Appointment</span></a>
+    <div class="text-xs font-semibold text-slate-500 uppercase tracking-wider px-3 mb-2 mt-4">Clinical</div>
+    <a href="/medicines/add/" class="sidebar-link {% if sidebar_active == 'prescribe' %}active{% endif %}"><i class="fas fa-prescription w-5"></i><span>Prescribe Medicine</span></a>
+    <a href="{% url 'doctor_assign_caregiver' %}" class="sidebar-link {% if sidebar_active == 'assign_caregiver' %}active{% endif %}"><i class="fas fa-hospital-user w-5"></i><span>Assign Caregiver</span></a>
+    <a href="/reports/" class="sidebar-link {% if sidebar_active == 'reports' %}active{% endif %}"><i class="fas fa-file-medical-alt w-5"></i><span>Reports</span></a>
+    <a href="{% url 'doctor_earnings' %}" class="sidebar-link {% if sidebar_active == 'earnings' %}active{% endif %}"><i class="fas fa-indian-rupee-sign w-5"></i><span>Earnings</span></a>
+    <a href="{% url 'payment_history' %}" class="sidebar-link {% if sidebar_active == 'payments' %}active{% endif %}"><i class="fas fa-receipt w-5"></i><span>Payment History</span></a>
+    <a href="/messages/" class="sidebar-link {% if sidebar_active == 'messages' %}active{% endif %}"><i class="fas fa-comments w-5"></i><span>Messages</span>{% if unread_messages %}<span class="ml-auto bg-red-500 text-white text-xs px-1.5 py-0.5 rounded-full">{{ unread_messages }}</span>{% endif %}</a>
+    <a href="/notifications/" class="sidebar-link {% if sidebar_active == 'notifications' %}active{% endif %}"><i class="fas fa-bell w-5"></i><span>Notifications</span>{% if unread_count %}<span class="ml-auto bg-red-500 text-white text-xs px-1.5 py-0.5 rounded-full">{{ unread_count }}</span>{% endif %}</a>
+
+    {% elif user.role == 'caregiver' %}
+    <div class="text-xs font-semibold text-slate-500 uppercase tracking-wider px-3 mb-2">Main</div>
+    <a href="/dashboard/caregiver/" class="sidebar-link {% if sidebar_active == 'dashboard' %}active{% endif %}"><i class="fas fa-home w-5"></i><span>Dashboard</span></a>
+    <a href="{% url 'caregiver_my_patient' %}" class="sidebar-link {% if sidebar_active == 'my_patient' %}active{% endif %}"><i class="fas fa-user-injured w-5"></i><span>My Patient</span></a>
+    {% if caregiver_acting_for %}
+    <div class="text-xs font-semibold text-slate-500 uppercase tracking-wider px-3 mb-2 mt-4">Patient Access</div>
+    <a href="/dashboard/patient/" class="sidebar-link {% if sidebar_active == 'patient_dashboard' %}active{% endif %}"><i class="fas fa-th-large w-5"></i><span>Patient Dashboard</span></a>
+    <a href="/medicines/" class="sidebar-link {% if sidebar_active == 'medicines' %}active{% endif %}"><i class="fas fa-pills w-5"></i><span>Medicines</span></a>
+    <a href="/medicines/activities/" class="sidebar-link {% if sidebar_active == 'activities' %}active{% endif %}"><i class="fas fa-running w-5"></i><span>Activities</span></a>
+    <a href="/appointments/" class="sidebar-link {% if sidebar_active == 'appointments' %}active{% endif %}"><i class="fas fa-calendar-check w-5"></i><span>Appointments</span></a>
+    <a href="/appointments/book/" class="sidebar-link {% if sidebar_active == 'book_appointment' %}active{% endif %}"><i class="fas fa-calendar-plus w-5"></i><span>Book Appointment</span></a>
+    <a href="/connections/list/" class="sidebar-link {% if sidebar_active == 'connections' %}active{% endif %}"><i class="fas fa-user-md w-5"></i><span>Doctor Connections</span></a>
+    <a href="/medicines/analytics/" class="sidebar-link {% if sidebar_active == 'health_analytics' %}active{% endif %}"><i class="fas fa-chart-line w-5"></i><span>Health Analytics</span></a>
+    <a href="/reports/" class="sidebar-link {% if sidebar_active == 'reports' %}active{% endif %}"><i class="fas fa-file-medical w-5"></i><span>Reports</span></a>
+    <a href="{% url 'payment_history' %}" class="sidebar-link {% if sidebar_active == 'payments' %}active{% endif %}"><i class="fas fa-receipt w-5"></i><span>Payment History</span></a>
+    {% endif %}
+    <a href="/messages/" class="sidebar-link {% if sidebar_active == 'messages' %}active{% endif %}"><i class="fas fa-comments w-5"></i><span>Messages</span></a>
+    <a href="/notifications/" class="sidebar-link {% if sidebar_active == 'notifications' %}active{% endif %}"><i class="fas fa-bell w-5"></i><span>Notifications</span>{% if unread_count %}<span class="ml-auto bg-red-500 text-white text-xs px-1.5 py-0.5 rounded-full">{{ unread_count }}</span>{% endif %}</a>
+
+    {% elif user.role == 'family' %}
+    <div class="text-xs font-semibold text-slate-500 uppercase tracking-wider px-3 mb-2">Main</div>
+    <a href="/family/" class="sidebar-link {% if sidebar_active == 'dashboard' %}active{% endif %}"><i class="fas fa-home w-5"></i><span>Family Dashboard</span></a>
+    <a href="/messages/" class="sidebar-link {% if sidebar_active == 'messages' %}active{% endif %}"><i class="fas fa-comments w-5"></i><span>Messages</span></a>
+    <a href="/notifications/" class="sidebar-link {% if sidebar_active == 'notifications' %}active{% endif %}"><i class="fas fa-bell w-5"></i><span>Notifications</span>{% if unread_count %}<span class="ml-auto bg-red-500 text-white text-xs px-1.5 py-0.5 rounded-full">{{ unread_count }}</span>{% endif %}</a>
+
+    {% elif user.role == 'admin' %}
+    <div class="text-xs font-semibold text-slate-500 uppercase tracking-wider px-3 mb-2">System Admin</div>
+    <a href="/system-admin/" class="sidebar-link"><i class="fas fa-shield-halved w-5"></i><span>Admin Panel</span></a>
+    {% endif %}
+  </nav>
+
+  <div class="p-4 border-t border-slate-700 space-y-1">
+    {% if user.role == 'doctor' %}<a href="/profile/doctor/" class="sidebar-link text-sm"><i class="fas fa-user-edit w-5"></i><span>Edit Profile</span></a>
+    {% elif user.role == 'patient' %}<a href="/profile/patient/" class="sidebar-link text-sm"><i class="fas fa-user-edit w-5"></i><span>Edit Profile</span></a>
+    {% elif user.role == 'caregiver' %}<a href="{% url 'caregiver_settings' %}" class="sidebar-link text-sm"><i class="fas fa-user-edit w-5"></i><span>Edit Profile</span></a>{% endif %}
+    <a href="/auth/logout/" class="sidebar-link text-sm text-red-400 hover:text-red-300 hover:bg-red-500/10"><i class="fas fa-sign-out-alt w-5"></i><span>Logout</span></a>
+  </div>
+</aside>
+
+<script>
+{% if user.role == 'patient' %}
+function updateMsgBadge() {
+  fetch('/messages/unread-count/')
+    .then(r => r.json())
+    .then(data => {
+      const badge = document.getElementById('sidebarMsgBadge');
+      if (badge) {
+        if (data.count > 0) {
+          badge.textContent = data.count;
+          badge.classList.remove('hidden');
+        } else {
+          badge.classList.add('hidden');
+        }
+      }
+    }).catch(() => {});
+}
+updateMsgBadge();
+setInterval(updateMsgBadge, 15000);
+{% endif %}
+</script>

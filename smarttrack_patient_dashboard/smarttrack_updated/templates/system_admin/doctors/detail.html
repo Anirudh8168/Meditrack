@@ -1,0 +1,99 @@
+{% extends 'system_admin/base.html' %}
+{% block page_title %}{{ page_title }}{% endblock %}
+{% block page_subtitle %}{{ page_subtitle }}{% endblock %}
+{% block content %}
+<div class="space-y-6 animate-fade-in">
+
+  <div class="admin-profile-header">
+    <div class="flex flex-col lg:flex-row lg:items-start lg:justify-between gap-4">
+      <div class="flex flex-col sm:flex-row sm:items-center gap-4 flex-1">
+        <div class="w-16 h-16 rounded-2xl bg-white/20 flex items-center justify-center text-2xl font-bold flex-shrink-0">
+          {{ doctor.first_name|first }}{{ doctor.last_name|first }}
+        </div>
+        <div class="flex-1">
+          <h2 class="text-xl font-bold">Dr. {{ doctor.get_full_name }}</h2>
+          <p class="text-blue-100 text-sm mt-0.5">{{ doctor.unique_id }} · {{ doctor.email }}</p>
+        </div>
+      </div>
+      <div class="admin-header-actions">
+        {% url 'system_admin_doctor_edit' doctor.id as doctor_edit_url %}
+        {% url 'system_admin_doctor_remove' doctor.id as doctor_delete_url %}
+        {% include 'system_admin/includes/profile_actions.html' with edit_url=doctor_edit_url delete_url=doctor_delete_url delete_name=doctor.get_full_name back_url='/system-admin/doctors/' %}
+      </div>
+    </div>
+  </div>
+
+  <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
+    <div class="admin-stat-card text-center items-center">
+      <div class="admin-stat-value text-blue-600">{{ patients_count }}</div>
+      <div class="admin-stat-label">Patients</div>
+    </div>
+    <div class="admin-stat-card text-center items-center">
+      <div class="admin-stat-value text-emerald-600">{{ apt_completed }}</div>
+      <div class="admin-stat-label">Completed Apts</div>
+    </div>
+    <div class="admin-stat-card text-center items-center">
+      <div class="admin-stat-value text-amber-600">{{ apt_pending }}</div>
+      <div class="admin-stat-label">Pending Apts</div>
+    </div>
+    <div class="admin-stat-card text-center items-center">
+      <div class="admin-stat-value text-violet-600">{% if profile %}{{ profile.years_of_experience|default:"—" }}{% else %}—{% endif %}</div>
+      <div class="admin-stat-label">Years Experience</div>
+    </div>
+  </div>
+
+  <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+    <div class="admin-panel">
+      <div class="admin-panel-header"><h3 class="font-bold text-slate-800 text-sm">Doctor Info</h3></div>
+      <div class="admin-panel-body">
+        <div class="admin-info-grid">
+          <div class="admin-info-item"><label>Doctor ID</label><span>{{ doctor.unique_id }}</span></div>
+          <div class="admin-info-item"><label>Specialization</label><span>{% if profile %}{{ profile.get_specialty_display|default:profile.specialty|default:"—" }}{% else %}—{% endif %}</span></div>
+          <div class="admin-info-item"><label>Phone</label><span>{{ doctor.phone|default:"—" }}</span></div>
+          <div class="admin-info-item"><label>Hospital</label><span>{% if profile %}{{ profile.hospital_name|default:"—" }}{% else %}—{% endif %}</span></div>
+          <div class="admin-info-item"><label>License</label><span>{% if profile %}{{ profile.license_number|default:"—" }}{% else %}—{% endif %}</span></div>
+          <div class="admin-info-item"><label>Status</label><span>{% if doctor.is_active %}Active{% else %}Suspended{% endif %}</span></div>
+          <div class="admin-info-item"><label>Joined</label><span>{{ doctor.date_joined|date:"M j, Y" }}</span></div>
+          <div class="admin-info-item"><label>Consultation</label><span>{% if profile %}{{ profile.get_consultation_mode_display|default:"—" }}{% else %}—{% endif %}</span></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="admin-panel">
+      <div class="admin-panel-header"><h3 class="font-bold text-slate-800 text-sm">Connected Patients</h3></div>
+      <div class="admin-panel-body pt-2">
+        {% for conn in connections %}
+        <div class="flex justify-between items-center py-2.5 border-b border-slate-50 text-sm">
+          <a href="{% url 'system_admin_patient_detail' conn.patient.id %}" class="font-medium text-slate-700 hover:text-indigo-600">{{ conn.patient.get_full_name }}</a>
+          <span class="text-slate-400 text-xs">{{ conn.patient.unique_id }}</span>
+        </div>
+        {% empty %}
+        <p class="text-sm text-slate-400 py-4 text-center">No connected patients.</p>
+        {% endfor %}
+      </div>
+    </div>
+
+    <div class="admin-panel lg:col-span-2">
+      <div class="admin-panel-header"><h3 class="font-bold text-slate-800 text-sm">Recent Appointments</h3></div>
+      <div class="overflow-x-auto">
+        <table class="admin-table">
+          <thead><tr><th>Patient</th><th>Date</th><th>Status</th><th>Type</th></tr></thead>
+          <tbody>
+            {% for a in appointments %}
+            <tr>
+              <td class="font-medium">{{ a.patient.get_full_name }}</td>
+              <td class="text-slate-500">{{ a.appointment_date }}</td>
+              <td><span class="admin-badge {% if a.status == 'completed' %}active{% elif a.status == 'cancelled' %}suspended{% else %}pending{% endif %}">{{ a.status }}</span></td>
+              <td class="text-slate-500">{{ a.appointment_type }}</td>
+            </tr>
+            {% empty %}
+            <tr><td colspan="4" class="text-center py-8 text-slate-400">No appointments.</td></tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+</div>
+{% endblock %}

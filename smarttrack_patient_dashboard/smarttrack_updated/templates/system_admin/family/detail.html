@@ -1,0 +1,50 @@
+{% extends 'system_admin/base.html' %}
+{% block page_title %}{{ page_title }}{% endblock %}
+{% block page_subtitle %}{{ page_subtitle }}{% endblock %}
+{% block content %}
+<div class="space-y-6 animate-fade-in">
+
+  <div class="admin-profile-header">
+    <div class="flex flex-col lg:flex-row lg:items-start lg:justify-between gap-4">
+      <div class="flex flex-col sm:flex-row sm:items-center gap-4 flex-1">
+        <div class="w-16 h-16 rounded-2xl bg-white/20 flex items-center justify-center text-2xl font-bold flex-shrink-0">
+          {{ member.name|first|upper }}
+        </div>
+        <div class="flex-1">
+          <h2 class="text-xl font-bold">{{ member.name }}</h2>
+          <p class="text-blue-100 text-sm mt-0.5">{{ member.relation }} of {{ patient.get_full_name }}</p>
+        </div>
+      </div>
+      <div class="admin-header-actions">
+        {% url 'system_admin_family_edit' member.id as fm_edit_url %}
+        {% url 'system_admin_family_delete' member.id as fm_delete_url %}
+        {% include 'system_admin/includes/profile_actions.html' with edit_url=fm_edit_url delete_url=fm_delete_url delete_name=member.name back_url='/system-admin/family/' %}
+      </div>
+    </div>
+  </div>
+
+  <div class="admin-panel">
+    <div class="admin-panel-header"><h3 class="font-bold text-slate-800 text-sm">Care Network</h3></div>
+    <div class="admin-panel-body">
+      {% include 'system_admin/includes/relationship_cards.html' with relationships=relationships %}
+    </div>
+  </div>
+
+  <div class="admin-panel">
+    <div class="admin-panel-header"><h3 class="font-bold text-slate-800 text-sm">Contact Details</h3></div>
+    <div class="admin-panel-body">
+      <div class="admin-info-grid">
+        <div class="admin-info-item"><label>Name</label><span>{{ member.name }}</span></div>
+        <div class="admin-info-item"><label>Relation</label><span>{{ member.relation }}</span></div>
+        <div class="admin-info-item"><label>Phone</label><span>{{ member.phone|default:"—" }}</span></div>
+        <div class="admin-info-item"><label>Email</label><span>{{ member.email|default:"—" }}</span></div>
+        <div class="admin-info-item"><label>Linked Patient</label><span><a href="{% url 'system_admin_patient_detail' patient.id %}" class="text-indigo-600 hover:underline">{{ patient.get_full_name }}</a></span></div>
+        <div class="admin-info-item"><label>Emergency Contact</label><span>{% if member.is_emergency_contact %}Yes{% else %}No{% endif %}</span></div>
+        <div class="admin-info-item"><label>Account Status</label><span>{% if member.user %}Registered ({{ member.user.email }}){% else %}Contact record only{% endif %}</span></div>
+        <div class="admin-info-item"><label>Added</label><span>{{ member.created_at|date:"M j, Y" }}</span></div>
+      </div>
+    </div>
+  </div>
+
+</div>
+{% endblock %}

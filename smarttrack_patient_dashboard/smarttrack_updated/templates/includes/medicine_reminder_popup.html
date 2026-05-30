@@ -1,0 +1,24 @@
+<!-- Global medicine reminder popup (patient dashboard) -->
+<div id="medicineReminderPopup" class="fixed inset-0 bg-slate-900/80 backdrop-blur-sm z-[10001] hidden flex items-center justify-center p-4">
+  <div class="bg-white w-full max-w-sm rounded-3xl shadow-2xl overflow-hidden animate-slide-in">
+    <div class="bg-emerald-600 p-6 text-center text-white">
+      <div class="w-16 h-16 bg-white/20 rounded-full flex items-center justify-center mx-auto mb-4">
+        <i class="fas fa-bell text-2xl animate-bounce"></i>
+      </div>
+      <h3 class="text-xl font-bold">Medicine Reminder</h3>
+      <p class="text-emerald-100 text-sm">Time to take your medicine!</p>
+    </div>
+    <div class="p-6 text-center">
+      <div id="popupMedInfo" class="mb-6">
+        <div id="popupMedName" class="text-lg font-bold text-slate-800">Medicine Name</div>
+        <div id="popupMedDosage" class="text-slate-500 text-sm">Dosage</div>
+        <div id="popupMedScheduled" class="text-xs text-slate-400 mt-2">Scheduled: —</div>
+        <div id="popupMedStock" class="text-xs text-emerald-600 font-semibold mt-1 hidden">Stock: — left</div>
+      </div>
+      <div class="flex flex-col gap-3">
+        <button id="popupMarkTakenBtn" type="button" class="w-full py-3 bg-emerald-600 text-white rounded-xl font-bold hover:bg-emerald-700 transition">Mark Taken</button>
+        <button id="popupSnoozeMedBtn" type="button" class="w-full py-3 bg-slate-100 text-slate-600 rounded-xl font-semibold hover:bg-slate-200 transition">Remind Me Later</button>
+      </div>
+    </div>
+  </div>
+</div>

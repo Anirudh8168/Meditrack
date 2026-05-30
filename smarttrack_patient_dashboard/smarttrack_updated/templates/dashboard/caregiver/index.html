@@ -1,0 +1,162 @@
+{% extends 'base_dashboard.html' %}
+{% block page_title %}Caregiver Dashboard{% endblock %}
+{% block page_subtitle %}{{ greeting }}, {{ user.first_name }} · {{ today|date:"l, F j, Y" }}{% endblock %}
+
+{% block content %}
+<div class="space-y-6">
+
+  <!-- Header row -->
+  <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+    <div>
+      <h2 class="text-xl font-bold text-slate-800">{{ greeting }}, {{ user.first_name }}</h2>
+      <p class="text-sm text-slate-500 mt-0.5">
+        {% if has_patient %}Monitoring {{ active_assignment.patient.get_full_name }}{% else %}Connect to a patient to begin care management{% endif %}
+      </p>
+    </div>
+    <div class="flex gap-2">
+      {% if has_patient %}
+      <a href="{% url 'caregiver_enter_mode' active_assignment.patient.id %}" class="px-4 py-2.5 bg-teal-600 text-white text-sm font-semibold rounded-xl hover:bg-teal-700 transition flex items-center gap-2">
+        <i class="fas fa-external-link-alt"></i> Patient Dashboard
+      </a>
+      {% else %}
+      <a href="{% url 'caregiver_my_patient' %}" class="px-4 py-2.5 bg-teal-600 text-white text-sm font-semibold rounded-xl hover:bg-teal-700 transition flex items-center gap-2">
+        <i class="fas fa-user-plus"></i> Find Patient
+      </a>
+      {% endif %}
+      <a href="{% url 'caregiver_my_patient' %}" class="px-4 py-2.5 border border-slate-200 text-slate-700 text-sm font-semibold rounded-xl hover:bg-slate-50 transition">My Patient</a>
+    </div>
+  </div>
+
+  <!-- Pending outgoing request -->
+  {% if pending_assignment and not has_patient %}
+  <div class="p-4 bg-amber-50 border border-amber-200 rounded-xl flex items-center justify-between">
+    <div class="flex items-center gap-3">
+      <i class="fas fa-clock text-amber-500"></i>
+      <div class="text-sm"><span class="font-semibold text-amber-900">Pending:</span> <span class="text-amber-800">Awaiting {{ pending_assignment.patient.get_full_name }}'s approval</span></div>
+    </div>
+    <a href="{% url 'caregiver_my_patient' %}" class="text-xs text-amber-700 font-semibold hover:underline">View →</a>
+  </div>
+  {% endif %}
+
+  <!-- Stats -->
+  <div class="grid grid-cols-2 md:grid-cols-4 gap-3">
+    <div class="bg-white rounded-xl border border-slate-100 p-4 shadow-sm">
+      <div class="text-2xl font-black text-slate-800">{% if has_patient %}1{% else %}0{% endif %}</div>
+      <div class="text-xs text-slate-500 mt-1">Assigned Patient</div>
+    </div>
+    <div class="bg-white rounded-xl border border-slate-100 p-4 shadow-sm">
+      <div class="text-2xl font-black text-emerald-600">{{ total_taken_today }}</div>
+      <div class="text-xs text-slate-500 mt-1">Meds Taken Today</div>
+    </div>
+    <div class="bg-white rounded-xl border border-slate-100 p-4 shadow-sm">
+      <div class="text-2xl font-black text-red-500">{{ missed_today }}</div>
+      <div class="text-xs text-slate-500 mt-1">Missed Today</div>
+    </div>
+    <div class="bg-white rounded-xl border border-slate-100 p-4 shadow-sm">
+      <div class="text-2xl font-black text-amber-600">{{ high_risk_count }}</div>
+      <div class="text-xs text-slate-500 mt-1">High Risk Alerts</div>
+    </div>
+  </div>
+
+  {% if risk_alerts %}
+  <div class="space-y-3">
+    <h3 class="font-bold text-slate-800 text-sm flex items-center gap-2">
+      <i class="fas fa-exclamation-triangle text-red-500"></i> Health Risk Alerts
+    </h3>
+    {% include 'dashboard/includes/health_risk_alert_cards.html' with risk_alerts=risk_alerts %}
+  </div>
+  {% endif %}
+
+  <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+    <!-- Patient overview -->
+    <div class="bg-white rounded-xl border border-slate-100 shadow-sm overflow-hidden">
+      <div class="px-5 py-3 border-b border-slate-100 bg-slate-50 flex items-center justify-between">
+        <h3 class="font-bold text-slate-800 text-sm">Patient Overview</h3>
+        {% if has_patient %}<a href="{% url 'caregiver_patient_detail' active_assignment.patient.id %}" class="text-xs text-teal-600 font-semibold hover:underline">Details →</a>{% endif %}
+      </div>
+      {% if patient_summaries %}
+      {% for summary in patient_summaries %}
+      <div class="p-5">
+        <div class="flex items-center gap-3 mb-4">
+          <div class="w-12 h-12 rounded-xl bg-teal-100 flex items-center justify-center text-teal-700 font-bold">
+            {{ summary.patient.first_name|first }}{{ summary.patient.last_name|first }}
+          </div>
+          <div class="flex-1">
+            <div class="font-semibold text-slate-800">{{ summary.patient.get_full_name }}</div>
+            <div class="text-xs text-slate-500">{{ summary.patient.unique_id }}</div>
+          </div>
+          {% if summary.risk %}
+          <span class="text-xs px-2 py-1 rounded-full font-semibold {% if summary.risk.level == 'high' %}bg-red-100 text-red-600{% elif summary.risk.level == 'medium' %}bg-amber-100 text-amber-600{% else %}bg-emerald-100 text-emerald-600{% endif %}">
+            {{ summary.risk.level|capfirst }}
+          </span>
+          {% endif %}
+        </div>
+        <div class="mb-2 flex justify-between text-xs text-slate-500">
+          <span>Today's Adherence</span><span>{{ summary.compliance_pct }}%</span>
+        </div>
+        <div class="w-full bg-slate-100 rounded-full h-1.5 mb-4">
+          <div class="h-1.5 rounded-full {% if summary.compliance_pct >= 80 %}bg-emerald-500{% elif summary.compliance_pct >= 50 %}bg-amber-500{% else %}bg-red-500{% endif %}" style="width: {{ summary.compliance_pct }}%"></div>
+        </div>
+        <div class="flex gap-4 text-xs text-slate-600">
+          <span><i class="fas fa-pills text-blue-500 mr-1"></i>{{ summary.medicines|length }} meds</span>
+          <span><i class="fas fa-check text-emerald-500 mr-1"></i>{{ summary.taken }} taken</span>
+          <span><i class="fas fa-times text-red-400 mr-1"></i>{{ summary.missed }} missed</span>
+        </div>
+      </div>
+      {% endfor %}
+      {% else %}
+      <div class="p-8 text-center">
+        <i class="fas fa-user-injured text-3xl text-slate-200 mb-3"></i>
+        <p class="text-sm text-slate-500">No patient assigned yet.</p>
+        <a href="{% url 'caregiver_my_patient' %}" class="inline-block mt-3 text-sm text-teal-600 font-semibold hover:underline">Search & connect →</a>
+      </div>
+      {% endif %}
+    </div>
+
+    <!-- Upcoming appointments -->
+    <div class="bg-white rounded-xl border border-slate-100 shadow-sm overflow-hidden">
+      <div class="px-5 py-3 border-b border-slate-100 bg-slate-50">
+        <h3 class="font-bold text-slate-800 text-sm flex items-center gap-2"><i class="fas fa-calendar-check text-teal-500"></i> Upcoming Appointments</h3>
+      </div>
+      {% if upcoming_apts %}
+      <div class="divide-y divide-slate-50">
+        {% for apt in upcoming_apts %}
+        <div class="px-5 py-3 flex items-center gap-3">
+          <div class="w-9 h-9 bg-blue-50 rounded-lg flex items-center justify-center flex-shrink-0">
+            <i class="fas fa-stethoscope text-blue-600 text-sm"></i>
+          </div>
+          <div class="flex-1 min-w-0">
+            <div class="text-sm font-semibold text-slate-800 truncate">{{ apt.patient.get_full_name }}</div>
+            <div class="text-xs text-slate-500">Dr. {{ apt.doctor.get_full_name }} · {{ apt.appointment_date }}</div>
+          </div>
+          <span class="text-xs px-2 py-0.5 rounded-full {% if apt.status == 'confirmed' %}bg-emerald-100 text-emerald-700{% else %}bg-amber-100 text-amber-700{% endif %}">{{ apt.status|capfirst }}</span>
+        </div>
+        {% endfor %}
+      </div>
+      {% else %}
+      <p class="text-sm text-slate-400 text-center py-8">No upcoming appointments.</p>
+      {% endif %}
+    </div>
+  </div>
+
+  <!-- Notifications -->
+  <div class="bg-white rounded-xl border border-slate-100 shadow-sm p-5">
+    <div class="flex items-center justify-between mb-4">
+      <h3 class="font-bold text-slate-800 text-sm flex items-center gap-2"><i class="fas fa-bell text-amber-500"></i> Recent Notifications</h3>
+      <a href="/notifications/" class="text-xs text-teal-600 font-semibold hover:underline">View all →</a>
+    </div>
+    {% if notifications %}
+    <div class="space-y-2">
+      {% for notif in notifications %}
+      <div class="flex items-start gap-3 p-3 rounded-lg {% if not notif.is_read %}bg-blue-50{% else %}bg-slate-50{% endif %}">
+        <div class="text-sm font-medium text-slate-800 flex-1">{{ notif.title }}</div>
+        <div class="text-xs text-slate-400 whitespace-nowrap">{{ notif.created_at|timesince }} ago</div>
+      </div>
+      {% endfor %}
+    </div>
+    {% else %}
+    <p class="text-sm text-slate-400 text-center py-4">No notifications for today.</p>
+    {% endif %}
+  </div>
+</div>
+{% endblock %}

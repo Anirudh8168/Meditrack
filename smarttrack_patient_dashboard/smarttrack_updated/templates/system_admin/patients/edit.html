@@ -1,0 +1,52 @@
+{% extends 'system_admin/base.html' %}
+{% block page_title %}{{ page_title }}{% endblock %}
+{% block page_subtitle %}{{ page_subtitle }}{% endblock %}
+{% block content %}
+<div class="admin-form-panel animate-fade-in">
+  <div class="admin-panel">
+    <div class="admin-panel-header">
+      <h3 class="font-bold text-slate-800 text-sm">Edit Patient Details</h3>
+      <a href="{% url 'system_admin_patient_detail' patient.id %}" class="text-sm text-slate-500 hover:text-slate-700"><i class="fas fa-arrow-left mr-1"></i> Cancel</a>
+    </div>
+    <form method="POST" enctype="multipart/form-data" class="admin-panel-body space-y-5">{% csrf_token %}
+      <div class="admin-form-grid">
+        <div><label class="admin-form-label">First Name</label><input name="first_name" value="{{ patient.first_name }}" class="admin-input w-full" required></div>
+        <div><label class="admin-form-label">Last Name</label><input name="last_name" value="{{ patient.last_name }}" class="admin-input w-full" required></div>
+        <div><label class="admin-form-label">Email</label><input name="email" type="email" value="{{ patient.email }}" class="admin-input w-full" required></div>
+        <div><label class="admin-form-label">Phone</label><input name="phone" value="{{ patient.phone }}" class="admin-input w-full"></div>
+        <div class="col-span-2"><label class="admin-form-label">Address</label><input name="address" value="{{ profile.address }}" class="admin-input w-full"></div>
+        <div><label class="admin-form-label">City</label><input name="city" value="{{ profile.city }}" class="admin-input w-full"></div>
+        <div><label class="admin-form-label">Profile Photo</label><input name="profile_photo" type="file" accept="image/*" class="admin-input w-full text-sm"></div>
+        <div class="col-span-2"><label class="admin-form-label">Primary Diagnosis / Conditions</label><textarea name="primary_diagnosis" rows="2" class="admin-input w-full resize-none">{{ profile.primary_diagnosis }}</textarea></div>
+        <div class="col-span-2"><label class="admin-form-label">Allergies</label><textarea name="allergies" rows="2" class="admin-input w-full resize-none">{{ profile.allergies }}</textarea></div>
+        <div><label class="admin-form-label">Emergency Contact Name</label><input name="emergency_contact_name" value="{{ profile.emergency_contact_name }}" class="admin-input w-full"></div>
+        <div><label class="admin-form-label">Emergency Contact Phone</label><input name="emergency_contact_phone" value="{{ profile.emergency_contact_phone }}" class="admin-input w-full"></div>
+        <div><label class="admin-form-label">Emergency Relation</label><input name="emergency_contact_relation" value="{{ profile.emergency_contact_relation }}" class="admin-input w-full"></div>
+        <div>
+          <label class="admin-form-label">Assigned Doctor</label>
+          <select name="assigned_doctor" class="admin-input w-full">
+            <option value="">— None —</option>
+            {% for d in doctors %}
+            <option value="{{ d.id }}" {% if current_doctor == d.id %}selected{% endif %}>Dr. {{ d.get_full_name }}</option>
+            {% endfor %}
+          </select>
+        </div>
+        <div>
+          <label class="admin-form-label">Assigned Caregiver</label>
+          <select name="assigned_caregiver" class="admin-input w-full">
+            <option value="">— None —</option>
+            {% for c in caregivers %}
+            <option value="{{ c.id }}" {% if current_caregiver == c.id %}selected{% endif %}>{{ c.get_full_name }}</option>
+            {% endfor %}
+          </select>
+        </div>
+        <div class="col-span-2 flex items-center gap-2 pt-1">
+          <input type="checkbox" name="is_active" id="is_active" {% if patient.is_active %}checked{% endif %} class="rounded">
+          <label for="is_active" class="text-sm font-medium text-slate-700">Account Active</label>
+        </div>
+      </div>
+      <button type="submit" class="admin-btn-primary"><i class="fas fa-save mr-1"></i> Save Changes</button>
+    </form>
+  </div>
+</div>
+{% endblock %}

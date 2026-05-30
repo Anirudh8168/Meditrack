@@ -1,0 +1,28 @@
+{% load static %}
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+<link rel="stylesheet" href="{% static 'css/nearby_places.css' %}?v=6" />
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script src="{% static 'js/nearby_places.js' %}?v=9"></script>
+<div id="pharmacyFinderBackdrop" class="nearby-places-backdrop">
+  <div id="pharmacyFinderPanel" class="nearby-places-panel is-minimized">
+    <div class="nearby-places-header">
+      <div>
+        <h3 class="font-bold text-slate-800 text-lg"><i class="fas fa-pills text-emerald-600 mr-2"></i>Nearby Pharmacies</h3>
+        <p class="text-xs text-slate-500">Based on your live GPS location only</p>
+      </div>
+      <div class="flex items-center gap-1">
+        <button type="button" id="pharmacyFinderMinimize" class="p-2 rounded-lg hover:bg-slate-200 text-slate-600" title="Restore size"><i class="fas fa-compress"></i></button>
+        <button type="button" id="pharmacyFinderMaximize" class="p-2 rounded-lg hover:bg-slate-200 text-slate-600" title="Maximize"><i class="fas fa-expand"></i></button>
+        <button type="button" id="pharmacyFinderClose" class="p-2 rounded-lg hover:bg-slate-200 text-slate-600" title="Close"><i class="fas fa-times"></i></button>
+      </div>
+    </div>
+    <div class="nearby-places-body">
+      <div class="nearby-places-list-wrap">
+        <div id="pharmacyList"></div>
+      </div>
+      <div class="nearby-places-map-wrap">
+        <div id="pharmacyMap" class="nearby-places-map"></div>
+      </div>
+    </div>
+  </div>
+</div>

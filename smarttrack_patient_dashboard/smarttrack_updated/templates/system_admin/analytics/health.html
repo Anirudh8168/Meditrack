@@ -1,0 +1,7 @@
+{% extends 'system_admin/base.html' %}
+{% block content %}
+<div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
+  <div class="bg-white rounded-2xl border p-5"><div class="text-xs text-slate-500">7-Day Adherence</div><div class="text-4xl font-black text-emerald-600">{{ adherence_pct }}%</div><div class="text-sm text-slate-500 mt-1">{{ taken }}/{{ total }} doses taken</div></div>
+</div>
+<p class="text-sm text-slate-500">System-wide medication adherence analytics for the past 7 days.</p>
+{% endblock %}

@@ -1,0 +1,31 @@
+<div class="flex items-center gap-3 p-3 rounded-xl border border-slate-100 hover:bg-slate-50 transition">
+  <div class="w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0
+    {% if log.status == 'completed' %}bg-emerald-100 text-emerald-600
+    {% elif log.status == 'missed' %}bg-red-100 text-red-600
+    {% elif log.status == 'in_progress' %}bg-amber-100 text-amber-600
+    {% else %}bg-blue-100 text-blue-600{% endif %}">
+    <i class="fas fa-running text-sm"></i>
+  </div>
+  <div class="flex-1 min-w-0">
+    <div class="font-semibold text-slate-800 text-sm truncate">{{ log.activity.title }}</div>
+    <div class="text-xs text-slate-500">
+      {{ log.activity.get_activity_type_display }} · {{ log.scheduled_time|time:"g:i A" }} · {{ log.activity.duration_minutes }} min
+    </div>
+  </div>
+  <div class="flex flex-col items-end gap-1">
+    {% if log.status == 'scheduled' %}
+    <span class="text-xs px-2 py-0.5 rounded-full bg-blue-50 text-blue-700 font-semibold">Scheduled</span>
+    {% elif log.status == 'in_progress' %}
+    <a href="{% url 'activity_session' log.id %}" class="text-xs px-2 py-1 rounded-lg bg-amber-500 text-white font-semibold">Continue</a>
+    {% elif log.status == 'completed' %}
+    <span class="text-xs px-2 py-0.5 rounded-full bg-emerald-50 text-emerald-700 font-semibold">Completed</span>
+    {% elif log.status == 'missed' %}
+    <span class="text-xs px-2 py-0.5 rounded-full bg-red-50 text-red-700 font-semibold">Missed</span>
+    {% endif %}
+{% if log.status == 'scheduled' and log.scheduled_time.date <= today %}
+    <button type="button" onclick="startActivity({{ log.id }})" class="text-xs px-2 py-1 rounded-lg bg-blue-600 text-white font-semibold hover:bg-blue-700">Start</button>
+    {% elif log.status == 'scheduled' %}
+    <span class="text-xs text-slate-400">Upcoming</span>
+    {% endif %}
+  </div>
+</div>

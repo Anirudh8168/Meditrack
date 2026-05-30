@@ -1,0 +1,20 @@
+<div class="bg-white rounded-2xl shadow-sm border border-teal-100 p-5 {% if compact %}text-sm{% endif %}">
+  <h4 class="font-bold text-slate-800 mb-1 flex items-center gap-2">
+    <i class="fas fa-hospital-user text-teal-600"></i> Hospital Caregiver
+  </h4>
+  <p class="text-xs text-slate-400 mb-3">Clinical staff assigned from your hospital system</p>
+  {% if caregiver %}
+  <div class="space-y-2 {% if compact %}text-xs{% else %}text-sm{% endif %}">
+    <div class="flex gap-2"><span class="text-slate-500 w-28 flex-shrink-0">Name:</span><span class="font-medium text-slate-800">{{ caregiver.caregiver_name }}</span></div>
+    <div class="flex gap-2"><span class="text-slate-500 w-28 flex-shrink-0">Role:</span><span class="font-medium text-slate-800">{{ caregiver.role_display }}</span></div>
+    <div class="flex gap-2"><span class="text-slate-500 w-28 flex-shrink-0">Department:</span><span class="font-medium text-slate-800">{{ caregiver.department_display }}</span></div>
+    <div class="flex gap-2"><span class="text-slate-500 w-28 flex-shrink-0">Phone:</span><span class="font-medium text-slate-800">{{ caregiver.contact_number|default:"—" }}</span></div>
+    <div class="flex gap-2"><span class="text-slate-500 w-28 flex-shrink-0">Duration:</span><span class="font-medium text-slate-800">{{ caregiver.duration_display }}</span></div>
+    <div class="flex gap-2"><span class="text-slate-500 w-28 flex-shrink-0">Status:</span>
+      <span class="font-semibold {% if caregiver.status == 'active' %}text-emerald-600{% else %}text-amber-600{% endif %}">{{ caregiver.get_status_display }}</span>
+    </div>
+  </div>
+  {% else %}
+  <p class="text-slate-400 {% if compact %}text-xs{% else %}text-sm{% endif %} italic">No hospital caregiver assigned</p>
+  {% endif %}
+</div>

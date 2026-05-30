@@ -1,0 +1,41 @@
+{% extends 'system_admin/base.html' %}
+{% block page_title %}Admin Profile{% endblock %}
+{% block page_subtitle %}Manage your administrator account{% endblock %}
+{% block content %}
+<div class="max-w-xl animate-fade-in">
+  <div class="admin-panel">
+    <div class="admin-panel-header">
+      <div class="flex items-center gap-3">
+        <div class="w-12 h-12 rounded-xl bg-gradient-to-br from-blue-500 to-violet-600 flex items-center justify-center text-white font-bold">
+          {{ user.first_name|first }}{{ user.last_name|first }}
+        </div>
+        <div>
+          <h3 class="font-bold text-slate-800">{{ user.get_full_name }}</h3>
+          <p class="text-xs text-slate-500">{{ user.email }}</p>
+        </div>
+      </div>
+    </div>
+    <form method="POST" class="admin-panel-body space-y-4">{% csrf_token %}
+      <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+        <div>
+          <label class="text-xs font-semibold text-slate-500 uppercase tracking-wider">First Name</label>
+          <input name="first_name" value="{{ user.first_name }}" class="admin-input w-full mt-1">
+        </div>
+        <div>
+          <label class="text-xs font-semibold text-slate-500 uppercase tracking-wider">Last Name</label>
+          <input name="last_name" value="{{ user.last_name }}" class="admin-input w-full mt-1">
+        </div>
+        <div class="sm:col-span-2">
+          <label class="text-xs font-semibold text-slate-500 uppercase tracking-wider">Phone</label>
+          <input name="phone" value="{{ user.phone }}" class="admin-input w-full mt-1">
+        </div>
+        <div class="sm:col-span-2">
+          <label class="text-xs font-semibold text-slate-500 uppercase tracking-wider">New Password</label>
+          <input name="password" type="password" class="admin-input w-full mt-1" placeholder="Leave blank to keep current password">
+        </div>
+      </div>
+      <button type="submit" class="admin-btn-primary"><i class="fas fa-save mr-1"></i> Update Profile</button>
+    </form>
+  </div>
+</div>
+{% endblock %}

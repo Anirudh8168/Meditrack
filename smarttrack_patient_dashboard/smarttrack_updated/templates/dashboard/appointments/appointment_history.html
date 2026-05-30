@@ -1,0 +1,40 @@
+{% extends 'base_dashboard.html' %}
+{% block title %}{{ category_meta.title }}{% endblock %}
+{% block page_title %}{{ category_meta.title }}{% endblock %}
+{% block page_subtitle %}{{ history_date_from|date:"M j, Y" }} – {{ history_date_to|date:"M j, Y" }} · newest first{% endblock %}
+
+{% block content %}
+<div class="mb-4 max-w-4xl">
+  <a href="{{ back_url }}" class="text-sm text-violet-600 hover:underline font-semibold">
+    <i class="fas fa-arrow-left mr-1"></i> Back
+  </a>
+</div>
+
+{% include 'includes/appointment_history_filter.html' %}
+
+<div class="max-w-4xl">
+  <p class="text-sm text-slate-500 mb-4">{{ items|length }} record{{ items|length|pluralize }} in selected range</p>
+
+  {% if items %}
+  <div class="space-y-3">
+    {% for apt in items %}
+      {% if category == 'emergency' %}
+        {% include 'includes/appointment_history_row.html' with apt=apt row_style='emergency' %}
+      {% elif category == 'rejected' %}
+        {% include 'includes/appointment_history_row.html' with apt=apt row_style='rejected' %}
+      {% elif category == 'cancelled' %}
+        {% include 'includes/appointment_history_row.html' with apt=apt row_style='cancelled' %}
+      {% else %}
+        {% include 'includes/appointment_history_row.html' with apt=apt row_style='default' %}
+      {% endif %}
+    {% endfor %}
+  </div>
+  {% else %}
+  <div class="text-center py-16 bg-white rounded-2xl border border-slate-100 text-slate-500">
+    <i class="fas {{ category_meta.icon }} text-4xl mb-3 opacity-25"></i>
+    <p class="font-semibold text-slate-600">No appointments in this range</p>
+    <p class="text-sm mt-1">Try a different date range or preset.</p>
+  </div>
+  {% endif %}
+</div>
+{% endblock %}

@@ -1,0 +1,85 @@
+{% extends 'base_dashboard.html' %}
+{% block title %}Nearby Emergency Clinics{% endblock %}
+{% block page_title %}Emergency Fallback{% endblock %}
+{% block page_subtitle %}Finding the nearest medical care for you{% endblock %}
+
+{% block content %}
+{% load static %}
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+<link rel="stylesheet" href="{% static 'css/nearby_places.css' %}?v=5" />
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script src="{% static 'js/nearby_places.js' %}?v=8"></script>
+<form style="display:none">{% csrf_token %}</form>
+
+<div class="max-w-4xl mx-auto space-y-6">
+    <div class="bg-white rounded-2xl p-6 shadow-sm border border-red-100">
+        <div class="flex items-center gap-3 mb-4">
+            <div class="w-10 h-10 bg-red-100 rounded-xl flex items-center justify-center text-red-600">
+                <i class="fas fa-hospital-alt"></i>
+            </div>
+            <div>
+                <h3 class="font-bold text-slate-800">Emergency Assistance</h3>
+                <p class="text-xs text-slate-500">Uses your live GPS only — enable location when prompted.</p>
+            </div>
+        </div>
+        <div class="flex gap-3 flex-wrap">
+            <button type="button" onclick="openStandaloneClinicFinder()" class="flex-1 min-w-[200px] py-3 bg-red-600 text-white rounded-xl font-bold hover:bg-red-700 transition flex items-center justify-center gap-2">
+                <i class="fas fa-location-arrow"></i> Find Nearest Clinic Now
+            </button>
+            <a href="tel:112" class="px-6 py-3 bg-slate-800 text-white rounded-xl font-bold hover:bg-slate-900 transition flex items-center justify-center gap-2">
+                <i class="fas fa-phone"></i> Emergency Call
+            </a>
+        </div>
+    </div>
+</div>
+
+<div id="clinicFinderBackdrop" class="nearby-places-backdrop">
+  <div id="clinicFinderPanel" class="nearby-places-panel is-minimized">
+    <div class="nearby-places-header">
+      <div>
+        <h3 class="font-bold text-slate-800 text-lg"><i class="fas fa-hospital text-red-500 mr-2"></i>Nearby Clinics & Hospitals</h3>
+        <p class="text-xs text-slate-500">Based on your live GPS location only</p>
+      </div>
+      <div class="flex items-center gap-1">
+        <button type="button" id="clinicFinderMinimize" class="p-2 rounded-lg hover:bg-slate-200 text-slate-600" title="Restore size"><i class="fas fa-compress"></i></button>
+        <button type="button" id="clinicFinderMaximize" class="p-2 rounded-lg hover:bg-slate-200 text-slate-600" title="Maximize"><i class="fas fa-expand"></i></button>
+        <button type="button" id="clinicFinderClose" class="p-2 rounded-lg hover:bg-slate-200 text-slate-600" title="Close"><i class="fas fa-times"></i></button>
+      </div>
+    </div>
+    <div class="nearby-places-body">
+      <div class="nearby-places-list-wrap">
+        <div id="clinicList"></div>
+      </div>
+      <div class="nearby-places-map-wrap">
+        <div id="clinicMap" class="nearby-places-map"></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+  function openStandaloneClinicFinder() {
+    if (!window.SmartTrackNearbyPlaces) {
+      showToast('error', 'Clinic Finder', 'Clinic finder failed to load. Please refresh the page.');
+      return;
+    }
+    window.SmartTrackNearbyPlaces.open({
+      backdropId: 'clinicFinderBackdrop',
+      panelId: 'clinicFinderPanel',
+      listId: 'clinicList',
+      mapId: 'clinicMap',
+      btnMaximizeId: 'clinicFinderMaximize',
+      btnMinimizeId: 'clinicFinderMinimize',
+      btnCloseId: 'clinicFinderClose',
+      placeType: 'clinic',
+      placeLabel: 'clinics and hospitals',
+      resultsKey: 'clinics',
+      locationDeniedMessage:
+        'Live location access is required to find nearby clinics. SmartTrack cannot use a saved or default address.',
+      buildApiUrl(lat, lng) {
+        return `/appointments/find-nearby-clinics/?lat=${lat}&lng=${lng}&fast=1`;
+      },
+    });
+  }
+</script>
+{% endblock %}

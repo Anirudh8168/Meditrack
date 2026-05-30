@@ -1,0 +1,166 @@
+{% extends 'system_admin/base.html' %}
+{% block page_title %}{{ page_title }}{% endblock %}
+{% block page_subtitle %}{{ page_subtitle }}{% endblock %}
+{% block content %}
+<div class="space-y-6 animate-fade-in">
+
+  <!-- Profile Header -->
+  <div class="admin-profile-header">
+    <div class="flex flex-col lg:flex-row lg:items-start lg:justify-between gap-4">
+      <div class="flex flex-col sm:flex-row sm:items-center gap-4 flex-1">
+        <div class="w-16 h-16 rounded-2xl bg-white/20 flex items-center justify-center text-2xl font-bold flex-shrink-0">
+          {{ patient.first_name|first }}{{ patient.last_name|first }}
+        </div>
+        <div class="flex-1">
+          <h2 class="text-xl font-bold">{{ patient.get_full_name }}</h2>
+          <p class="text-blue-100 text-sm mt-0.5">{{ patient.unique_id }} · {{ patient.email }}</p>
+          <div class="mt-2">
+            {% if not patient.is_active %}
+            <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold bg-red-500/30 text-red-100">Suspended</span>
+            {% elif not patient.profile_completed %}
+            <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold bg-white/20 text-white">Inactive Profile</span>
+            {% else %}
+            <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold bg-emerald-500/30 text-emerald-100">Active</span>
+            {% endif %}
+          </div>
+        </div>
+      </div>
+      <div class="admin-header-actions">
+        {% url 'system_admin_patient_edit' patient.id as patient_edit_url %}
+        {% url 'system_admin_patient_delete' patient.id as patient_delete_url %}
+        {% include 'system_admin/includes/profile_actions.html' with edit_url=patient_edit_url delete_url=patient_delete_url delete_name=patient.get_full_name back_url='/system-admin/patients/' %}
+      </div>
+    </div>
+  </div>
+
+  <!-- Relationship Cards -->
+  <div class="admin-panel">
+    <div class="admin-panel-header"><h3 class="font-bold text-slate-800 text-sm">Care Network</h3></div>
+    <div class="admin-panel-body">
+      {% include 'system_admin/includes/relationship_cards.html' with relationships=relationships %}
+    </div>
+  </div>
+
+  <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+    <!-- Basic Info -->
+    <div class="admin-panel lg:col-span-1">
+      <div class="admin-panel-header"><h3 class="font-bold text-slate-800 text-sm">Basic Info</h3></div>
+      <div class="admin-panel-body">
+        <div class="admin-info-grid">
+          <div class="admin-info-item"><label>Name</label><span>{{ patient.get_full_name }}</span></div>
+          <div class="admin-info-item"><label>Patient ID</label><span>{{ patient.unique_id }}</span></div>
+          <div class="admin-info-item"><label>Age</label><span>{% if profile.age %}{{ profile.age }} years{% else %}—{% endif %}</span></div>
+          <div class="admin-info-item"><label>Gender</label><span>{% if profile %}{{ profile.get_gender_display|default:"—" }}{% else %}—{% endif %}</span></div>
+          <div class="admin-info-item"><label>Contact</label><span>{{ patient.phone|default:"—" }}</span></div>
+          <div class="admin-info-item"><label>Address</label><span>{% if profile %}{{ profile.address|default:profile.city|default:"—" }}{% else %}—{% endif %}</span></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Medical Info -->
+    <div class="admin-panel lg:col-span-2">
+      <div class="admin-panel-header"><h3 class="font-bold text-slate-800 text-sm">Medical Info</h3></div>
+      <div class="admin-panel-body">
+        <div class="admin-info-grid">
+          <div class="admin-info-item"><label>Assigned Doctor</label><span>{% if assigned_doctor %}Dr. {{ assigned_doctor.get_full_name }}{% else %}Not assigned{% endif %}</span></div>
+          <div class="admin-info-item"><label>Caregiver</label><span>{% if assigned_caregiver %}{{ assigned_caregiver.get_full_name }}{% else %}Not assigned{% endif %}</span></div>
+          <div class="admin-info-item"><label>Conditions</label><span>{% if profile %}{{ profile.primary_diagnosis|default:"—"|truncatechars:80 }}{% else %}—{% endif %}</span></div>
+          <div class="admin-info-item"><label>Allergies</label><span>{% if profile %}{{ profile.allergies|default:"None recorded" }}{% else %}—{% endif %}</span></div>
+          {% if risk %}
+          <div class="admin-info-item"><label>Risk Level</label><span class="text-red-600 font-semibold">{{ risk.level|upper }} ({{ risk.score }}/100)</span></div>
+          {% endif %}
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Stats Row -->
+  <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
+    <div class="admin-stat-card text-center items-center">
+      <div class="admin-stat-value text-emerald-600">{{ apt_completed }}</div>
+      <div class="admin-stat-label">Completed</div>
+    </div>
+    <div class="admin-stat-card text-center items-center">
+      <div class="admin-stat-value text-amber-600">{{ apt_pending }}</div>
+      <div class="admin-stat-label">Pending</div>
+    </div>
+    <div class="admin-stat-card text-center items-center">
+      <div class="admin-stat-value text-red-600">{{ apt_emergency }}</div>
+      <div class="admin-stat-label">Emergency</div>
+    </div>
+    <div class="admin-stat-card text-center items-center">
+      <div class="admin-stat-value text-blue-600">{{ adherence_pct }}%</div>
+      <div class="admin-stat-label">Med Adherence (7d)</div>
+    </div>
+  </div>
+
+  <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+    <!-- Recent Activities -->
+    <div class="admin-panel">
+      <div class="admin-panel-header"><h3 class="font-bold text-slate-800 text-sm">Recent Activities</h3></div>
+      <div class="admin-panel-body pt-2">
+        {% for act in activities %}
+        <div class="flex justify-between py-2.5 border-b border-slate-50 text-sm">
+          <span class="font-medium text-slate-700">{{ act.title|default:act.get_activity_type_display }}</span>
+          <span class="text-slate-400 text-xs">{{ act.recorded_at|date:"M j, g:i A" }}</span>
+        </div>
+        {% empty %}
+        <p class="text-sm text-slate-400 py-4 text-center">No recent activities.</p>
+        {% endfor %}
+      </div>
+    </div>
+
+    <!-- Emergency History -->
+    <div class="admin-panel">
+      <div class="admin-panel-header"><h3 class="font-bold text-slate-800 text-sm text-red-700"><i class="fas fa-truck-medical mr-1"></i> Emergency History</h3></div>
+      <div class="admin-panel-body pt-2">
+        {% for e in emergencies %}
+        <div class="flex justify-between py-2.5 border-b border-slate-50 text-sm">
+          <span class="text-slate-700">{{ e.get_status_display|default:e.status }}</span>
+          <span class="text-slate-400 text-xs">{{ e.created_at|date:"M j, Y" }}</span>
+        </div>
+        {% empty %}
+        <p class="text-sm text-slate-400 py-4 text-center">No emergency history.</p>
+        {% endfor %}
+      </div>
+    </div>
+
+    <!-- Family Members -->
+    <div class="admin-panel">
+      <div class="admin-panel-header"><h3 class="font-bold text-slate-800 text-sm">Family Members</h3></div>
+      <div class="admin-panel-body pt-2">
+        {% for f in family %}
+        <div class="flex justify-between py-2.5 border-b border-slate-50 text-sm">
+          <div>
+            <span class="font-medium text-slate-700">{{ f.name }}</span>
+            <span class="text-slate-400 text-xs ml-2">{{ f.relation }}</span>
+          </div>
+          <span class="text-slate-500 text-xs">{{ f.phone }}</span>
+        </div>
+        {% empty %}
+        <p class="text-sm text-slate-400 py-4 text-center">No family members linked.</p>
+        {% endfor %}
+      </div>
+    </div>
+
+    <!-- Appointments -->
+    <div class="admin-panel">
+      <div class="admin-panel-header"><h3 class="font-bold text-slate-800 text-sm">Recent Appointments</h3></div>
+      <div class="admin-panel-body pt-2">
+        {% for a in appointments %}
+        <div class="flex justify-between py-2.5 border-b border-slate-50 text-sm">
+          <div>
+            <span class="font-medium text-slate-700">Dr. {{ a.doctor.get_full_name }}</span>
+            <span class="text-slate-400 text-xs ml-2">{{ a.appointment_date }}</span>
+          </div>
+          <span class="admin-badge {% if a.status == 'completed' %}active{% elif a.status == 'cancelled' %}suspended{% else %}pending{% endif %}">{{ a.status }}</span>
+        </div>
+        {% empty %}
+        <p class="text-sm text-slate-400 py-4 text-center">No appointments.</p>
+        {% endfor %}
+      </div>
+    </div>
+  </div>
+
+</div>
+{% endblock %}

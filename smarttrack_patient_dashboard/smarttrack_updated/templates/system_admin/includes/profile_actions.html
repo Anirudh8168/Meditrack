@@ -1,0 +1,12 @@
+<div class="admin-action-group">
+  <a href="{{ edit_url }}" class="admin-btn-action admin-btn-edit-sm" title="Edit"><i class="fas fa-pen"></i><span>Edit</span></a>
+  <button type="button"
+    class="admin-btn-action admin-btn-delete-sm"
+    title="Delete"
+    data-delete-url="{{ delete_url }}"
+    data-delete-name="{{ delete_name }}"
+    {% if delete_warning %}data-delete-warning="{{ delete_warning }}"{% endif %}>
+    <i class="fas fa-trash"></i><span>Delete</span>
+  </button>
+  <a href="{{ back_url }}" class="admin-btn-action admin-btn-back" title="Back"><i class="fas fa-arrow-left"></i><span>Back</span></a>
+</div>

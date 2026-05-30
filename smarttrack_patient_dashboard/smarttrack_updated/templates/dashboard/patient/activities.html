@@ -1,0 +1,47 @@
+{% extends 'base_dashboard.html' %}
+{% load static %}
+{% block title %}Health Activities{% endblock %}
+{% block page_title %}Health Activities{% endblock %}
+{% block page_subtitle %}Your schedule at a glance{% endblock %}
+
+{% block content %}
+
+<div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6">
+  <div class="flex items-center gap-4">
+    <div class="relative w-14 h-14">
+      <svg class="w-14 h-14 -rotate-90" viewBox="0 0 36 36">
+        <circle cx="18" cy="18" r="15.9" fill="none" stroke="#e2e8f0" stroke-width="3"/>
+        <circle cx="18" cy="18" r="15.9" fill="none" stroke="#3b82f6" stroke-width="3"
+          stroke-dasharray="{{ sections.compliance.compliance_pct|default:0 }}, 100" stroke-linecap="round"/>
+      </svg>
+      <span class="absolute inset-0 flex items-center justify-center text-xs font-bold text-blue-600">{{ sections.compliance.compliance_pct|default:0 }}%</span>
+    </div>
+    <div>
+      <div class="text-sm font-bold text-slate-800">30-Day Compliance</div>
+      <div class="text-xs text-slate-500">{{ sections.compliance.completed|default:0 }} completed · {{ sections.compliance.missed|default:0 }} missed</div>
+    </div>
+  </div>
+  <a href="{% url 'log_activity' %}" class="px-4 py-2 bg-blue-600 text-white rounded-xl font-semibold text-sm hover:bg-blue-700 transition inline-flex items-center gap-2">
+    <i class="fas fa-plus"></i> Schedule Activity
+  </a>
+</div>
+
+{% include 'dashboard/patient/includes/activity_sections.html' with sections=sections %}
+
+{% if schedule_summaries %}
+<section class="mt-8">
+  <div class="flex items-center justify-between mb-4">
+    <h3 class="text-sm font-bold text-slate-500 uppercase tracking-wider">Active Schedules</h3>
+    <span class="text-xs text-slate-400">{{ schedule_summaries|length }} routine{{ schedule_summaries|length|pluralize }}</span>
+  </div>
+  <div class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-3">
+    {% for summary in schedule_summaries %}
+    {% include 'dashboard/patient/includes/activity_schedule_card.html' with summary=summary %}
+    {% endfor %}
+  </div>
+</section>
+{% endif %}
+
+{% include 'dashboard/patient/includes/activity_delete_modal.html' %}
+<script src="{% static 'js/activity_actions.js' %}?v=1"></script>
+{% endblock %}

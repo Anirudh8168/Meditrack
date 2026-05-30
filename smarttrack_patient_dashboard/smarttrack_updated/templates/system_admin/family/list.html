@@ -1,0 +1,54 @@
+{% extends 'system_admin/base.html' %}
+{% block page_title %}{{ page_title|default:"Family Member Management" }}{% endblock %}
+{% block page_subtitle %}{{ page_subtitle|default:"View family contacts linked to patients" }}{% endblock %}
+{% block content %}
+<div class="admin-panel animate-fade-in">
+  <div class="admin-panel-header">
+    {% include 'system_admin/includes/search_filter.html' with search_placeholder='Search name, relation, patient...' filter_type='family' %}
+  </div>
+  <div class="overflow-x-auto">
+    <table class="admin-table">
+      <thead>
+        <tr>
+          <th>Name</th>
+          <th>Patient</th>
+          <th class="hidden md:table-cell">Relation</th>
+          <th>Contact</th>
+          <th>Status</th>
+          <th class="admin-table-actions">Actions</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for m in page %}
+        {% url 'system_admin_family_detail' m.id as fm_view_url %}
+        {% url 'system_admin_family_edit' m.id as fm_edit_url %}
+        {% url 'system_admin_family_delete' m.id as fm_delete_url %}
+        <tr>
+          <td class="font-semibold text-slate-800">{{ m.name }}</td>
+          <td>
+            <a href="{% url 'system_admin_patient_detail' m.patient.id %}" class="text-indigo-600 hover:underline font-medium">{{ m.patient.get_full_name }}</a>
+          </td>
+          <td class="hidden md:table-cell text-slate-600">{{ m.relation }}</td>
+          <td class="text-slate-600">{{ m.phone|default:m.email|default:"—" }}</td>
+          <td>
+            {% if m.user and m.user.is_active %}
+            <span class="admin-badge active">Active</span>
+            {% elif m.user %}
+            <span class="admin-badge suspended">Suspended</span>
+            {% else %}
+            <span class="admin-badge inactive">Contact Only</span>
+            {% endif %}
+          </td>
+          <td class="admin-table-actions">
+            {% include 'system_admin/includes/table_actions.html' with view_url=fm_view_url edit_url=fm_edit_url delete_url=fm_delete_url delete_name=m.name %}
+          </td>
+        </tr>
+        {% empty %}
+        <tr><td colspan="6" class="text-center py-12 text-slate-400">No family members found.</td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  <div class="admin-panel-body border-t border-slate-100 py-4">{% include 'system_admin/includes/pagination.html' %}</div>
+</div>
+{% endblock %}

@@ -1,0 +1,104 @@
+{% extends 'base_dashboard.html' %}
+{% block title %}Manage Family Members{% endblock %}
+{% block page_title %}Family Management{% endblock %}
+{% block page_subtitle %}Link your family members to receive health alerts{% endblock %}
+
+{% block content %}
+<div class="max-w-4xl mx-auto space-y-6">
+    <!-- Add Member Form -->
+    <div class="bg-white rounded-2xl shadow-sm border border-slate-100 p-6">
+        <h3 class="font-bold text-slate-800 text-sm mb-4">Add New Family Member</h3>
+        <form method="POST" class="grid grid-cols-1 md:grid-cols-3 gap-4">
+            {% csrf_token %}
+            <div class="space-y-1">
+                <label class="text-xs font-semibold text-slate-500 uppercase">Full Name</label>
+                <input type="text" name="name" required placeholder="John Doe" class="w-full px-4 py-2 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
+            </div>
+            <div class="space-y-1">
+                <label class="text-xs font-semibold text-slate-500 uppercase">Relation</label>
+                <input type="text" name="relation" required placeholder="Brother / Spouse" class="w-full px-4 py-2 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
+            </div>
+            <div class="space-y-1">
+                <label class="text-xs font-semibold text-slate-500 uppercase">Phone Number</label>
+                <input type="text" name="phone" required placeholder="+91 98765..." class="w-full px-4 py-2 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
+            </div>
+            <div class="space-y-1">
+                <label class="text-xs font-semibold text-slate-500 uppercase">Email Address</label>
+                <input type="email" name="email" placeholder="email@example.com" class="w-full px-4 py-2 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
+            </div>
+            <div class="space-y-1">
+                <label class="text-xs font-semibold text-slate-500 uppercase">Link to App User (ID)</label>
+                <input type="text" name="user_id" placeholder="e.g. PAT123456" class="w-full px-4 py-2 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
+            </div>
+            <div class="flex items-center gap-2 pt-6">
+                <input type="checkbox" name="is_emergency" id="is_emergency" class="w-4 h-4 rounded border-slate-300 text-blue-600 focus:ring-blue-500">
+                <label for="is_emergency" class="text-sm text-slate-600 font-medium">Primary Emergency Contact</label>
+            </div>
+            <div class="md:col-span-3 flex justify-end mt-2">
+                <button type="submit" name="action" value="add" class="px-6 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-xl text-sm font-bold transition shadow-sm">
+                    <i class="fas fa-plus mr-1"></i> Add Member
+                </button>
+            </div>
+        </form>
+    </div>
+
+    <!-- Family List -->
+    <div class="bg-white rounded-2xl shadow-sm border border-slate-100 overflow-hidden">
+        <div class="p-4 border-b border-slate-100">
+            <h3 class="font-bold text-slate-800 text-sm">Linked Family Members</h3>
+        </div>
+        <table class="w-full text-left">
+            <thead class="bg-slate-50 text-slate-500 text-xs uppercase font-bold">
+                <tr>
+                    <th class="px-6 py-3">Member</th>
+                    <th class="px-6 py-3">Relation</th>
+                    <th class="px-6 py-3">Contact</th>
+                    <th class="px-6 py-3 text-center">Emergency</th>
+                    <th class="px-6 py-3 text-right">Action</th>
+                </tr>
+            </thead>
+            <tbody class="divide-y divide-slate-100">
+                {% for member in family_members %}
+                <tr class="hover:bg-slate-50 transition">
+                    <td class="px-6 py-4">
+                        <div class="flex items-center gap-3">
+                            <div class="w-8 h-8 rounded-lg bg-slate-100 flex items-center justify-center text-slate-500 font-bold text-xs">
+                                {{ member.name|first }}
+                            </div>
+                            <span class="text-sm font-semibold text-slate-800">{{ member.name }}</span>
+                        </div>
+                    </td>
+                    <td class="px-6 py-4 text-sm text-slate-600">{{ member.relation }}</td>
+                    <td class="px-6 py-4 text-sm text-slate-600">
+                        {{ member.phone }}<br>
+                        <span class="text-xs opacity-60">{{ member.email }}</span>
+                    </td>
+                    <td class="px-6 py-4 text-center">
+                        {% if member.is_emergency_contact %}
+                        <span class="px-2 py-1 bg-rose-100 text-rose-600 rounded-full text-[10px] font-bold uppercase">Primary</span>
+                        {% else %}
+                        -
+                        {% endif %}
+                    </td>
+                    <td class="px-6 py-4 text-right">
+                        <form method="POST" action="{% url 'remove_family_member' member.id %}" style="display:inline">
+                            {% csrf_token %}
+                            <button type="submit" class="text-xs text-rose-500 hover:text-rose-700 font-medium transition">
+                                <i class="fas fa-trash-alt"></i> Remove
+                            </button>
+                        </form>
+                    </td>
+                </tr>
+                {% empty %}
+                <tr>
+                    <td colspan="5" class="px-6 py-12 text-center text-slate-400">
+                        <i class="fas fa-users-slash text-3xl mb-2 block opacity-20"></i>
+                        <p class="text-sm">No family members linked yet.</p>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+{% endblock %}

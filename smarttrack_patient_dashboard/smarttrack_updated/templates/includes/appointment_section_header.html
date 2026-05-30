@@ -1,0 +1,14 @@
+{% comment %}
+  Dashboard section header — no filters. Expects: title, today, history_category, optional icon_class
+{% endcomment %}
+<div class="flex items-center justify-between gap-2 mb-4 flex-wrap">
+  <h3 class="font-bold text-slate-800 flex items-center gap-2 text-sm sm:text-base">
+    {% if icon_class %}<i class="fas {{ icon_class }}"></i>{% endif %}
+    {{ title }}
+    <span class="text-xs font-normal text-slate-500">· {{ today|date:"M j, Y" }}</span>
+  </h3>
+  <a href="/appointments/history/?category={{ history_category }}&preset=all"
+    class="text-xs font-semibold text-violet-600 hover:text-violet-800 whitespace-nowrap flex items-center gap-1">
+    View History <i class="fas fa-arrow-right text-[10px]"></i>
+  </a>
+</div>

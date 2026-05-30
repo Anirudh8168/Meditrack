@@ -1,0 +1,86 @@
+{% extends 'system_admin/base.html' %}
+{% block page_title %}{{ page_title }}{% endblock %}
+{% block page_subtitle %}{{ page_subtitle }}{% endblock %}
+{% block content %}
+<div class="space-y-6 animate-fade-in">
+
+  <div class="admin-profile-header">
+    <div class="flex flex-col lg:flex-row lg:items-start lg:justify-between gap-4">
+      <div class="flex flex-col sm:flex-row sm:items-center gap-4 flex-1">
+        <div class="w-16 h-16 rounded-2xl bg-white/20 flex items-center justify-center text-2xl font-bold flex-shrink-0">
+          {{ caregiver.first_name|first }}{{ caregiver.last_name|first }}
+        </div>
+        <div class="flex-1">
+          <h2 class="text-xl font-bold">{{ caregiver.get_full_name }}</h2>
+          <p class="text-blue-100 text-sm mt-0.5">{{ caregiver.unique_id }} · {{ caregiver.email }}</p>
+        </div>
+      </div>
+      <div class="admin-header-actions">
+        {% url 'system_admin_caregiver_edit' caregiver.id as cg_edit_url %}
+        {% url 'system_admin_caregiver_remove' caregiver.id as cg_delete_url %}
+        {% include 'system_admin/includes/profile_actions.html' with edit_url=cg_edit_url delete_url=cg_delete_url delete_name=caregiver.get_full_name back_url='/system-admin/caregivers/' delete_warning=has_active_patient|yesno:"This caregiver is currently linked to a patient., " %}
+      </div>
+    </div>
+  </div>
+
+  <!-- Relationship Cards -->
+  <div class="admin-panel">
+    <div class="admin-panel-header"><h3 class="font-bold text-slate-800 text-sm">Care Network</h3></div>
+    <div class="admin-panel-body">
+      <div class="admin-relationship-grid">
+        <div class="admin-relationship-card">
+          <div class="admin-relationship-role">Caregiver</div>
+          <div class="admin-relationship-name">{{ caregiver.get_full_name }}</div>
+        </div>
+        <div class="admin-relationship-card">
+          <div class="admin-relationship-role">Assigned Patient</div>
+          {% if assigned_patient %}
+          <a href="{% url 'system_admin_patient_detail' assigned_patient.id %}" class="admin-relationship-name hover:text-indigo-600">{{ assigned_patient.get_full_name }}</a>
+          {% else %}
+          <div class="admin-relationship-name text-slate-400">Not assigned</div>
+          {% endif %}
+        </div>
+        <div class="admin-relationship-card">
+          <div class="admin-relationship-role">Assigned Doctor</div>
+          {% if assigned_doctor %}
+          <a href="{% url 'system_admin_doctor_detail' assigned_doctor.id %}" class="admin-relationship-name hover:text-indigo-600">Dr. {{ assigned_doctor.get_full_name }}</a>
+          {% else %}
+          <div class="admin-relationship-name text-slate-400">Not assigned</div>
+          {% endif %}
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+    <div class="admin-panel">
+      <div class="admin-panel-header"><h3 class="font-bold text-slate-800 text-sm">Caregiver Info</h3></div>
+      <div class="admin-panel-body">
+        <div class="admin-info-grid">
+          <div class="admin-info-item"><label>Caregiver ID</label><span>{{ caregiver.unique_id }}</span></div>
+          <div class="admin-info-item"><label>Type</label><span>{% if profile %}{{ profile.get_caregiver_type_display }}{% else %}—{% endif %}</span></div>
+          <div class="admin-info-item"><label>Phone</label><span>{{ caregiver.phone|default:profile.phone|default:"—" }}</span></div>
+          <div class="admin-info-item"><label>Hospital</label><span>{% if profile %}{{ profile.hospital_name|default:"—" }}{% else %}—{% endif %}</span></div>
+          <div class="admin-info-item"><label>Status</label><span>{% if caregiver.is_active %}Active{% else %}Suspended{% endif %}</span></div>
+          <div class="admin-info-item"><label>Joined</label><span>{{ caregiver.date_joined|date:"M j, Y" }}</span></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="admin-panel">
+      <div class="admin-panel-header"><h3 class="font-bold text-slate-800 text-sm">Patient Assignments</h3></div>
+      <div class="admin-panel-body pt-2">
+        {% for l in links %}
+        <div class="flex justify-between items-center py-2.5 border-b border-slate-50 text-sm">
+          <a href="{% url 'system_admin_patient_detail' l.patient.id %}" class="font-medium text-slate-700 hover:text-indigo-600">{{ l.patient.get_full_name }}</a>
+          <span class="admin-badge {% if l.status == 'active' %}active{% else %}inactive{% endif %}">{{ l.status }}</span>
+        </div>
+        {% empty %}
+        <p class="text-sm text-slate-400 py-4 text-center">No patient assignments.</p>
+        {% endfor %}
+      </div>
+    </div>
+  </div>
+
+</div>
+{% endblock %}

@@ -1,0 +1,405 @@
+{% extends 'base_dashboard.html' %}
+{% load static %}
+{% block title %}Patient: {{ patient.get_full_name }}{% endblock %}
+{% block page_title %}{{ patient.get_full_name }}{% endblock %}
+{% block page_subtitle %}ID: {{ patient.unique_id }} · Patient Overview{% endblock %}
+{% block content %}
+<form style="display:none">{% csrf_token %}</form>
+<a href="/dashboard/doctor/" class="inline-flex items-center gap-2 text-sm text-slate-500 hover:text-slate-800 mb-6 transition">
+  <i class="fas fa-arrow-left"></i> Back to Dashboard
+</a>
+
+<div class="bg-gradient-to-r from-blue-600 to-violet-700 rounded-2xl p-6 mb-6 text-white shadow-lg">
+  <div class="flex items-start justify-between flex-wrap gap-4">
+    <div class="flex items-center gap-4">
+      <div class="w-16 h-16 bg-white/20 rounded-2xl flex items-center justify-center text-2xl font-black">
+        {{ patient.first_name|first }}{{ patient.last_name|first }}
+      </div>
+      <div>
+        <h2 class="text-2xl font-black">{{ patient.get_full_name }}</h2>
+        <div class="text-blue-200 text-sm">{{ patient.unique_id }} · {{ patient.email }}</div>
+        {% if profile %}
+        <div class="flex gap-3 mt-2 text-sm">
+          {% if profile.blood_group %}<span class="bg-white/20 px-2 py-0.5 rounded-full text-xs">🩸 {{ profile.blood_group }}</span>{% endif %}
+          {% if profile.age %}<span class="bg-white/20 px-2 py-0.5 rounded-full text-xs">Age {{ profile.age }}</span>{% endif %}
+          {% if profile.gender %}<span class="bg-white/20 px-2 py-0.5 rounded-full text-xs">{{ profile.gender|title }}</span>{% endif %}
+        </div>
+        {% endif %}
+      </div>
+    </div>
+    <div class="flex gap-2 flex-wrap">
+      <a href="/messages/?with={{ patient.id }}" class="px-4 py-2 bg-white/20 hover:bg-white/30 rounded-xl text-sm font-semibold transition flex items-center gap-2">
+        <i class="fas fa-comment"></i> Message
+      </a>
+      <a href="/reports/generate/{{ patient.id }}/" class="px-4 py-2 bg-white text-blue-700 hover:bg-blue-50 rounded-xl text-sm font-semibold transition flex items-center gap-2">
+        <i class="fas fa-file-medical-alt"></i> Generate Report
+      </a>
+    </div>
+  </div>
+</div>
+
+<div class="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
+  <div class="bg-white border border-slate-100 rounded-2xl p-4 shadow-sm">
+    <div class="text-xs text-slate-500 mb-1 font-medium">Adherence (7d)</div>
+    <div class="text-2xl font-black {% if adherence >= 80 %}text-emerald-600{% elif adherence >= 50 %}text-amber-600{% else %}text-red-600{% endif %}">{{ adherence }}%</div>
+    <div class="text-xs text-slate-400 mt-1">Medicine compliance</div>
+  </div>
+  <div class="bg-white border border-slate-100 rounded-2xl p-4 shadow-sm">
+    <div class="text-xs text-slate-500 mb-1 font-medium">Active Medicines</div>
+    <div class="text-2xl font-black text-blue-600">{{ medicines.count }}</div>
+    <div class="text-xs text-slate-400 mt-1">Currently prescribed</div>
+  </div>
+  <div class="bg-white border border-slate-100 rounded-2xl p-4 shadow-sm">
+    <div class="text-xs text-slate-500 mb-1 font-medium">Risk Level</div>
+    {% if risk %}
+    <div class="text-2xl font-black {% if risk.level == 'high' %}text-red-600{% elif risk.level == 'medium' %}text-amber-600{% else %}text-emerald-600{% endif %}">{{ risk.level|upper }}</div>
+    <div class="text-xs text-slate-400 mt-1">Score: {{ risk.score }}/100</div>
+    {% else %}
+    <div class="text-2xl font-black text-slate-400">N/A</div>
+    <div class="text-xs text-slate-400 mt-1">No data yet</div>
+    {% endif %}
+  </div>
+  <div class="bg-white border border-slate-100 rounded-2xl p-4 shadow-sm">
+    <div class="text-xs text-slate-500 mb-1 font-medium">Activity Compliance</div>
+    <div class="text-2xl font-black {% if patient_activities.compliance.compliance_pct >= 80 %}text-emerald-600{% elif patient_activities.compliance.compliance_pct >= 50 %}text-amber-600{% else %}text-red-600{% endif %}">{{ patient_activities.compliance.compliance_pct }}%</div>
+    <div class="text-xs text-slate-400 mt-1">{{ patient_activities.compliance.completed }}/{{ patient_activities.compliance.total }} completed (30d)</div>
+  </div>
+</div>
+
+{% if missed_activity_alert %}
+<div class="mb-6 p-4 bg-red-50 border border-red-200 rounded-2xl text-sm text-red-800">
+  <i class="fas fa-exclamation-triangle mr-2"></i>
+  <strong>{{ missed_activity_alert }}</strong>
+</div>
+{% endif %}
+
+<div class="bg-white rounded-2xl shadow-sm border border-slate-100 p-6 mb-6">
+  <h3 class="font-bold text-slate-800 mb-4 flex items-center gap-2"><i class="fas fa-chart-bar text-blue-500"></i> 7-Day Adherence Trend</h3>
+  <div class="flex items-end gap-2 h-24">
+    {% for d in chart_data %}
+    <div class="flex-1 flex flex-col items-center gap-1">
+      <div class="text-xs text-slate-400 font-medium">{{ d.pct }}%</div>
+      <div class="w-full rounded-t-lg transition-all"
+           style="height:{{ d.pct }}%; min-height:6px; background:{% if d.pct >= 80 %}#10b981{% elif d.pct >= 50 %}#f59e0b{% else %}#ef4444{% endif %}"></div>
+      <div class="text-xs text-slate-400">{{ d.day }}</div>
+    </div>
+    {% endfor %}
+  </div>
+</div>
+
+<div class="mb-6" id="caregiver">
+  {% include 'includes/caregiver_info_card.html' with caregiver=caregiver %}
+  <div class="mt-3 flex gap-2">
+    <a href="{% url 'doctor_assign_caregiver' %}" class="text-xs px-3 py-1.5 bg-teal-100 text-teal-700 rounded-xl hover:bg-teal-200 font-semibold transition">
+      <i class="fas fa-hospital-user mr-1"></i>{% if caregiver %}Manage Hospital CG{% else %}Assign Hospital CG{% endif %}
+    </a>
+  </div>
+</div>
+
+<div class="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
+  <div class="bg-white rounded-2xl shadow-sm border border-slate-100 p-6 lg:col-span-2">
+    <h3 class="font-bold text-slate-800 mb-4 flex items-center gap-2"><i class="fas fa-boxes text-amber-500"></i> Medicine Status Panel</h3>
+    {% if medicine_inventory %}
+    <div class="overflow-x-auto">
+      <table class="w-full text-sm">
+        <thead>
+          <tr class="text-left text-xs text-slate-500 border-b border-slate-100">
+            <th class="pb-2 pr-3">Medicine</th>
+            <th class="pb-2 pr-3">Prescribed</th>
+            <th class="pb-2 pr-3">Purchased</th>
+            <th class="pb-2 pr-3">Stock</th>
+            <th class="pb-2 pr-3">Taken</th>
+            <th class="pb-2 pr-3">Compliance</th>
+            <th class="pb-2 pr-3">Status</th>
+            <th class="pb-2 pr-3">Missed</th>
+            <th class="pb-2 pr-3">Gap</th>
+            <th class="pb-2 pr-3">Risk</th>
+            <th class="pb-2">Actions</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for inv in medicine_inventory %}
+          <tr class="border-b border-slate-50 hover:bg-slate-50">
+            <td class="py-3 pr-3 font-semibold text-slate-800">{{ inv.name }}</td>
+            <td class="py-3 pr-3">{{ inv.prescribed_quantity }}</td>
+            <td class="py-3 pr-3">{{ inv.purchased_quantity }}</td>
+            <td class="py-3 pr-3 {% if inv.low_stock %}text-red-600 font-bold{% endif %}">{{ inv.remaining_stock }}</td>
+            <td class="py-3 pr-3">{{ inv.taken_doses }}</td>
+            <td class="py-3 pr-3">{{ inv.compliance_pct }}%</td>
+            <td class="py-3 pr-3">
+              {% if inv.not_purchased_yet %}<span class="text-amber-700 font-bold">Not Purchased</span>
+              {% elif inv.severity == 'emergency' %}<span class="text-red-700 font-bold">Emergency</span>
+              {% elif inv.severity == 'critical' %}<span class="text-red-600 font-bold">Critical</span>
+              {% elif inv.severity == 'high' %}<span class="text-orange-600 font-semibold">High</span>
+              {% elif inv.low_stock %}<span class="text-amber-600 font-semibold">Low Stock</span>
+              {% else %}<span class="text-emerald-600">OK</span>{% endif %}
+              {% if inv.partial_refill %}<div class="text-amber-600 text-xs font-semibold mt-0.5">Partial ({{ inv.partial_detail.purchased }}/{{ inv.partial_detail.prescribed }})</div>{% endif %}
+            </td>
+            <td class="py-3 pr-3">{{ inv.missed_doses }}</td>
+            <td class="py-3 pr-3">{% if inv.refill_gap_days %}{{ inv.refill_gap_days }}d{% else %}—{% endif %}</td>
+            <td class="py-3 pr-3">
+              {% if inv.not_purchased_yet %}<span class="text-red-600 font-semibold">High</span>
+              {% elif inv.refill_gap_days >= 3 or inv.partial_refill %}<span class="text-red-600 font-semibold">High</span>
+              {% elif inv.low_stock %}<span class="text-amber-600">Medium</span>{% else %}<span class="text-emerald-600">Low</span>{% endif %}
+            </td>
+            <td class="py-3">
+              <div class="flex gap-1 flex-wrap">
+                <a href="/messages/?with={{ patient.id }}" class="text-xs px-2 py-1 bg-blue-50 text-blue-700 rounded-lg hover:bg-blue-100">Call Patient</a>
+                <a href="/messages/?with={{ patient.id }}" class="text-xs px-2 py-1 bg-amber-50 text-amber-700 rounded-lg hover:bg-amber-100">Send Reminder</a>
+                <a href="/medicines/add/?patient_id={{ patient.id }}" class="text-xs px-2 py-1 bg-emerald-50 text-emerald-700 rounded-lg hover:bg-emerald-100">Renew Rx</a>
+              </div>
+            </td>
+          </tr>
+          {% if inv.not_purchased_yet %}
+          <tr><td colspan="11" class="pb-3 text-xs text-amber-700 bg-amber-50 px-3 py-2 rounded-lg">
+            ⚠ Patient has not purchased {{ inv.name }} yet — treatment not started.
+          </td></tr>
+          {% elif inv.partial_refill %}
+          <tr><td colspan="11" class="pb-3 text-xs text-amber-700 bg-amber-50 px-3 py-2 rounded-lg">
+            ⚠ Partial Refill — patient purchased only {{ inv.partial_detail.purchased }}/{{ inv.partial_detail.prescribed }} units. Treatment interruption possible.
+          </td></tr>
+          {% endif %}
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+    {% else %}
+    <p class="text-sm text-slate-400 text-center py-4">No active medicine inventory data</p>
+    {% endif %}
+  </div>
+</div>
+
+<div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+  <div class="bg-white rounded-2xl shadow-sm border border-slate-100 p-6">
+    <div class="flex items-center justify-between mb-4">
+      <h3 class="font-bold text-slate-800 flex items-center gap-2"><i class="fas fa-pills text-emerald-500"></i> Medicines</h3>
+      <a href="/medicines/add/" class="text-xs px-3 py-1.5 bg-emerald-600 text-white rounded-xl hover:bg-emerald-700 transition font-semibold">Prescribe</a>
+    </div>
+    {% if medicines %}
+    <div class="space-y-3">
+      {% for med in medicines %}
+      <div class="flex items-center gap-3 p-3 rounded-xl border border-slate-100 hover:bg-slate-50 transition">
+        <div class="w-9 h-9 bg-emerald-100 rounded-lg flex items-center justify-center flex-shrink-0">
+          <i class="fas fa-capsules text-emerald-600 text-sm"></i>
+        </div>
+        <div class="flex-1 min-w-0">
+          <div class="font-semibold text-slate-800 text-sm truncate">{{ med.name }}</div>
+          <div class="text-xs text-slate-500">{{ med.dosage }} · {{ med.get_frequency_display }}</div>
+        </div>
+        <div class="flex items-center gap-2 flex-shrink-0">
+          <span class="text-xs {% if med.is_low_stock %}text-red-600 bg-red-50 border border-red-200{% else %}text-slate-500 bg-slate-100{% endif %} px-2 py-0.5 rounded-full">
+            {{ med.stock_quantity }}
+          </span>
+          <a href="/medicines/edit/{{ med.id }}/" class="p-1.5 text-blue-600 hover:bg-blue-50 rounded-lg transition" title="Edit">
+            <i class="fas fa-edit text-xs"></i>
+          </a>
+          <button type="button" onclick="openDeleteMedModal({{ med.id }}, '{{ med.name|escapejs }}')"
+                  class="p-1.5 text-red-600 hover:bg-red-50 rounded-lg transition" title="Remove">
+            <i class="fas fa-trash text-xs"></i>
+          </button>
+          {% if med.completion_pct %}
+          <div class="w-12 h-1.5 bg-slate-200 rounded-full overflow-hidden">
+            <div class="h-full bg-emerald-500 rounded-full" style="width:{{ med.completion_pct }}%"></div>
+          </div>
+          {% endif %}
+        </div>
+      </div>
+      {% endfor %}
+    </div>
+    {% else %}
+    <p class="text-sm text-slate-400 text-center py-6">No active medicines</p>
+    {% endif %}
+  </div>
+
+  <div class="bg-white rounded-2xl shadow-sm border border-slate-100 p-6">
+    <h3 class="font-bold text-slate-800 mb-4 flex items-center gap-2"><i class="fas fa-notes-medical text-violet-500"></i> Medical Information</h3>
+    {% if profile %}
+    <div class="space-y-3">
+      {% if profile.primary_diagnosis %}
+      <div class="flex gap-3">
+        <span class="text-xs text-slate-500 w-24 flex-shrink-0 pt-0.5">Diagnosis:</span>
+        <span class="text-sm text-slate-800 font-medium">{{ profile.primary_diagnosis }}</span>
+      </div>
+      {% endif %}
+      {% if profile.allergies %}
+      <div class="flex gap-3">
+        <span class="text-xs text-slate-500 w-24 flex-shrink-0 pt-0.5">Allergies:</span>
+        <span class="text-sm text-slate-800 font-medium text-red-700">{{ profile.allergies }}</span>
+      </div>
+      {% endif %}
+      {% if profile.blood_group %}
+      <div class="flex gap-3">
+        <span class="text-xs text-slate-500 w-24 flex-shrink-0 pt-0.5">Blood Group:</span>
+        <span class="text-sm font-bold text-slate-800">{{ profile.blood_group }}</span>
+      </div>
+      {% endif %}
+      {% if profile.bmi %}
+      <div class="flex gap-3">
+        <span class="text-xs text-slate-500 w-24 flex-shrink-0 pt-0.5">BMI:</span>
+        <span class="text-sm font-bold {% if profile.bmi < 18.5 or profile.bmi > 30 %}text-amber-600{% else %}text-emerald-600{% endif %}">{{ profile.bmi }}</span>
+      </div>
+      {% endif %}
+      {% if profile.emergency_contact_name %}
+      <div class="mt-3 p-3 bg-red-50 rounded-xl border border-red-100">
+        <div class="text-xs font-semibold text-red-700 mb-1">Emergency Contact</div>
+        <div class="text-sm text-slate-800">{{ profile.emergency_contact_name }}</div>
+        <div class="text-sm text-slate-600">{{ profile.emergency_contact_phone }}</div>
+      </div>
+      {% endif %}
+    </div>
+    {% else %}
+    <p class="text-sm text-slate-400 text-center py-6">No profile data available</p>
+    {% endif %}
+  </div>
+</div>
+
+<div class="mt-6 bg-white rounded-2xl shadow-sm border border-slate-100 p-6">
+  <div class="flex flex-wrap items-center justify-between gap-3 mb-4">
+    <div>
+      <h3 class="font-bold text-slate-800 flex items-center gap-2">
+        <i class="fas fa-person-walking text-blue-500"></i> Activities
+      </h3>
+      <div class="flex flex-wrap gap-3 mt-2 text-xs text-slate-500">
+        <span><strong class="text-slate-700">{{ patient_activities.counts.scheduled }}</strong> Scheduled</span>
+        <span class="text-slate-300">·</span>
+        <span><strong class="text-emerald-600">{{ patient_activities.counts.completed }}</strong> Completed</span>
+        <span class="text-slate-300">·</span>
+        <span><strong class="text-red-600">{{ patient_activities.counts.missed }}</strong> Missed</span>
+        {% if patient_activities.counts.active %}
+        <span class="text-slate-300">·</span>
+        <span><strong class="text-blue-600">{{ patient_activities.counts.active }}</strong> Active now</span>
+        {% endif %}
+      </div>
+    </div>
+    <a href="{% url 'log_activity' %}?patient_id={{ patient.id }}"
+       class="text-xs px-3 py-1.5 bg-blue-600 text-white rounded-xl hover:bg-blue-700 transition font-semibold">
+      <i class="fas fa-plus mr-1"></i> Schedule Activity
+    </a>
+  </div>
+
+  {% if patient_activities.cards %}
+  <div class="space-y-3">
+    {% for item in patient_activities.cards %}
+    <div class="flex items-center gap-3 p-3 rounded-xl border border-slate-100 hover:bg-slate-50 transition {% if not item.activity.is_active %}opacity-75{% endif %}">
+      <div class="w-9 h-9 rounded-lg flex items-center justify-center flex-shrink-0
+        {% if item.display_status_key == 'completed' %}bg-emerald-100{% elif item.display_status_key == 'missed' %}bg-red-100{% elif item.display_status_key == 'active' %}bg-blue-100{% elif item.display_status_key == 'upcoming' %}bg-violet-100{% else %}bg-slate-100{% endif %}">
+        <i class="fas fa-heart-pulse text-sm
+          {% if item.display_status_key == 'completed' %}text-emerald-600{% elif item.display_status_key == 'missed' %}text-red-600{% elif item.display_status_key == 'active' %}text-blue-600{% elif item.display_status_key == 'upcoming' %}text-violet-600{% else %}text-slate-500{% endif %}"></i>
+      </div>
+      <div class="flex-1 min-w-0">
+        <div class="font-semibold text-slate-800 text-sm truncate">{{ item.title }}</div>
+        <div class="text-xs text-slate-500">{{ item.frequency_label }} · {{ item.times_label }} · {{ item.duration_minutes }} min</div>
+        <div class="flex flex-wrap items-center gap-2 mt-1">
+          <span class="text-[10px] px-2 py-0.5 rounded-full font-semibold
+            {% if item.display_status_key == 'completed' %}bg-emerald-50 text-emerald-700
+            {% elif item.display_status_key == 'missed' %}bg-red-50 text-red-700
+            {% elif item.display_status_key == 'active' %}bg-blue-50 text-blue-700
+            {% elif item.display_status_key == 'upcoming' %}bg-violet-50 text-violet-700
+            {% elif item.display_status_key == 'cancelled' %}bg-slate-100 text-slate-600
+            {% else %}bg-amber-50 text-amber-700{% endif %}">
+            {{ item.display_status_label }}
+          </span>
+          <span class="text-[10px] px-2 py-0.5 rounded-full bg-slate-100 text-slate-600 font-medium">
+            By {{ item.created_by_badge }}
+          </span>
+          {% if item.completion_display %}
+          <span class="text-[10px] text-slate-400">Completed {{ item.completion_display }}</span>
+          {% elif item.missed_count %}
+          <span class="text-[10px] text-red-500">{{ item.missed_count }} missed (30d)</span>
+          {% endif %}
+        </div>
+      </div>
+      <div class="flex items-center gap-1 flex-shrink-0">
+        <a href="{% url 'activity_detail' item.activity_id %}"
+           class="px-2.5 py-1.5 text-xs font-semibold text-blue-600 hover:bg-blue-50 rounded-lg transition" title="View">
+          View
+        </a>
+        {% if item.can_manage %}
+        <a href="{% url 'edit_activity' item.activity_id %}"
+           class="p-1.5 text-slate-500 hover:bg-slate-100 rounded-lg transition" title="Edit">
+          <i class="fas fa-edit text-xs"></i>
+        </a>
+        <button type="button"
+                data-delete-activity
+                data-activity-id="{{ item.activity_id }}"
+                data-activity-title="{{ item.title|escapejs }}"
+                data-schedule-label="{{ item.frequency_label }} · {{ item.times_label|escapejs }}"
+                data-is-recurring="{% if item.is_recurring %}1{% else %}0{% endif %}"
+                data-redirect="{% url 'patient_detail' patient.id %}"
+                class="p-1.5 text-red-500 hover:bg-red-50 rounded-lg transition" title="Delete">
+          <i class="fas fa-trash text-xs"></i>
+        </button>
+        {% endif %}
+      </div>
+    </div>
+    {% endfor %}
+  </div>
+  {% else %}
+  <div class="text-center py-10">
+    <div class="w-12 h-12 bg-slate-100 rounded-xl flex items-center justify-center mx-auto mb-3">
+      <i class="fas fa-person-walking text-slate-400"></i>
+    </div>
+    <p class="text-sm text-slate-500">No activities scheduled for this patient yet.</p>
+    <a href="{% url 'log_activity' %}?patient_id={{ patient.id }}"
+       class="inline-block mt-3 text-xs px-3 py-1.5 bg-blue-600 text-white rounded-xl hover:bg-blue-700 transition font-semibold">
+      Schedule First Activity
+    </a>
+  </div>
+  {% endif %}
+</div>
+
+{% if reports %}
+<div class="mt-6 bg-white rounded-2xl shadow-sm border border-slate-100 p-6">
+  <div class="flex items-center justify-between mb-4">
+    <h3 class="font-bold text-slate-800 flex items-center gap-2"><i class="fas fa-file-medical text-rose-500"></i> Recent Reports</h3>
+    <a href="/reports/generate/{{ patient.id }}/" class="text-xs px-3 py-1.5 bg-rose-600 text-white rounded-xl hover:bg-rose-700 transition font-semibold">Generate New</a>
+  </div>
+  <div class="space-y-3">
+    {% for rep in reports %}
+    <div class="flex items-center gap-4 p-3 rounded-xl border border-slate-100 hover:bg-slate-50 transition">
+      <div class="w-9 h-9 bg-rose-100 rounded-lg flex items-center justify-center"><i class="fas fa-file-alt text-rose-600 text-sm"></i></div>
+      <div class="flex-1">
+        <div class="text-sm font-semibold text-slate-800">{{ rep.title|truncatechars:50 }}</div>
+        <div class="text-xs text-slate-500">{{ rep.created_at|date:"M j, Y" }} · {{ rep.adherence_pct }}% adherence</div>
+      </div>
+      <span class="text-xs px-2 py-0.5 rounded-full {% if rep.risk_level == 'high' %}bg-red-100 text-red-700{% elif rep.risk_level == 'medium' %}bg-amber-100 text-amber-700{% else %}bg-emerald-100 text-emerald-700{% endif %}">{{ rep.risk_level|title }}</span>
+      <div class="flex gap-1">
+        <a href="/reports/{{ rep.id }}/" class="px-2 py-1 text-xs bg-blue-100 text-blue-700 rounded-lg hover:bg-blue-200">View</a>
+        <a href="/reports/{{ rep.id }}/pdf/" class="px-2 py-1 text-xs bg-slate-100 text-slate-700 rounded-lg hover:bg-slate-200"><i class="fas fa-download"></i></a>
+      </div>
+    </div>
+    {% endfor %}
+  </div>
+</div>
+{% endif %}
+
+{% include 'dashboard/patient/includes/activity_delete_modal.html' %}
+<script src="{% static 'js/activity_actions.js' %}?v=2"></script>
+
+<div id="deleteMedModal" class="fixed inset-0 bg-black/50 z-50 hidden flex items-center justify-center p-4">
+  <div class="bg-white rounded-2xl shadow-2xl w-full max-w-md p-6">
+    <h3 class="font-bold text-slate-800 text-lg mb-2">Remove Medicine</h3>
+    <p class="text-sm text-slate-600 mb-4">Are you sure you want to remove <strong id="deleteMedName"></strong>? This will archive the prescription (history is kept).</p>
+    <form id="deleteMedForm" method="POST" action="">
+      {% csrf_token %}
+      <label class="block text-xs font-medium text-slate-600 mb-1">Reason (optional)</label>
+      <input type="text" name="deletion_reason" placeholder="Course completed, switched medication..."
+             class="w-full px-3 py-2 border border-slate-200 rounded-xl text-sm mb-4">
+      <div class="flex gap-3">
+        <button type="button" onclick="closeDeleteMedModal()" class="flex-1 px-4 py-2.5 bg-slate-100 text-slate-700 rounded-xl font-semibold text-sm">Cancel</button>
+        <button type="submit" class="flex-1 px-4 py-2.5 bg-red-600 text-white rounded-xl font-semibold text-sm">Delete</button>
+      </div>
+    </form>
+  </div>
+</div>
+<script>
+function openDeleteMedModal(id, name) {
+  document.getElementById('deleteMedName').textContent = name;
+  document.getElementById('deleteMedForm').action = '/medicines/delete/' + id + '/';
+  document.getElementById('deleteMedModal').classList.remove('hidden');
+}
+function closeDeleteMedModal() {
+  document.getElementById('deleteMedModal').classList.add('hidden');
+}
+</script>
+{% endblock %}

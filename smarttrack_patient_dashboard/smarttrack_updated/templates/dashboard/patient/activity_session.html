@@ -1,0 +1,283 @@
+{% extends 'base_dashboard.html' %}
+{% block title %}Activity Session{% endblock %}
+{% block page_title %}{{ activity.title }}{% endblock %}
+{% block page_subtitle %}{% if phase == 'ready' %}Ready to start{% elif phase == 'active' %}Activity in Progress{% else %}Session{% endif %}{% endblock %}
+
+{% block content %}
+{% load static %}
+{% csrf_token %}
+<a href="{% url 'activity_list' %}" class="inline-flex items-center gap-2 text-sm text-slate-500 hover:text-slate-800 mb-5">
+  <i class="fas fa-arrow-left"></i> Back to Activities
+</a>
+<div class="max-w-lg mx-auto">
+  <div class="bg-white rounded-2xl shadow-lg border border-slate-100 overflow-hidden">
+    <div class="bg-gradient-to-r from-blue-600 to-violet-600 px-6 py-5 text-white">
+      <div class="flex items-start justify-between gap-3">
+        <div>
+          <p class="text-blue-100 text-xs font-semibold uppercase tracking-wide mb-1">{{ activity.get_activity_type_display }}</p>
+          <h2 class="text-xl font-bold">{{ activity.title }}</h2>
+        </div>
+        <span class="text-xs px-2.5 py-1 rounded-full bg-white/20 font-semibold whitespace-nowrap">
+          {% if phase == 'ready' %}Scheduled{% else %}In Progress{% endif %}
+        </span>
+      </div>
+    </div>
+
+    <div class="p-6 space-y-5">
+      <div class="grid grid-cols-2 gap-3 text-sm">
+        <div class="p-3 rounded-xl bg-slate-50 border border-slate-100">
+          <div class="text-xs text-slate-500 mb-0.5">Scheduled Time</div>
+          <div class="font-bold text-slate-800">{{ scheduled_time_display }}</div>
+        </div>
+        <div class="p-3 rounded-xl bg-slate-50 border border-slate-100">
+          <div class="text-xs text-slate-500 mb-0.5">Duration</div>
+          <div class="font-bold text-slate-800">{{ activity.duration_minutes }} min</div>
+        </div>
+      </div>
+
+      {% if activity.description %}
+      <div class="p-4 rounded-xl bg-blue-50 border border-blue-100 text-sm text-slate-700">
+        <div class="text-xs font-semibold text-blue-700 uppercase mb-1">Instructions</div>
+        {{ activity.description }}
+      </div>
+      {% endif %}
+
+      <!-- Single countdown — session page only -->
+      <div id="activityTimerBlock" class="text-center py-4">
+        <p id="activityTimerLabel" class="text-xs font-semibold uppercase tracking-wide mb-2 text-slate-500">
+          {% if phase == 'active' %}Remaining Time{% else %}Starts in{% endif %}
+        </p>
+        {% if phase == 'active' %}
+        <div class="relative w-44 h-44 mx-auto mb-2">
+          <svg class="w-44 h-44 -rotate-90" viewBox="0 0 36 36">
+            <circle cx="18" cy="18" r="15.9" fill="none" stroke="#e2e8f0" stroke-width="2"/>
+            <circle id="timerRing" cx="18" cy="18" r="15.9" fill="none" stroke="#3b82f6" stroke-width="2.5"
+              stroke-dasharray="0, 100" stroke-linecap="round"/>
+          </svg>
+          <div class="absolute inset-0 flex flex-col items-center justify-center">
+            <span id="activityCountdown" class="text-3xl font-bold text-slate-800 tabular-nums">--:--</span>
+          </div>
+        </div>
+        <p class="text-xs text-slate-500">Started at <span id="startedAtDisplay">{{ started_at_display|default:"—" }}</span></p>
+        {% else %}
+        <p id="activityCountdown" class="text-5xl font-black text-slate-800 tabular-nums tracking-tight">--:--</p>
+        <p id="preStartHint" class="text-xs text-slate-500 mt-3">Proof upload is required before the activity timer begins.</p>
+        {% endif %}
+      </div>
+
+      {% if phase == 'ready' %}
+      <div id="preStartPanel" class="space-y-4">
+        <div id="readyBanner" class="hidden text-center p-4 rounded-xl bg-emerald-50 border border-emerald-100">
+          <p class="text-sm text-emerald-800 font-semibold">Scheduled time reached — ready to start</p>
+        </div>
+        <button type="button" id="startActivityBtn" {% if not can_start_now %}disabled{% endif %}
+                class="w-full py-3.5 rounded-xl font-bold transition {% if can_start_now %}bg-blue-600 text-white hover:bg-blue-700{% else %}bg-slate-200 text-slate-400 cursor-not-allowed{% endif %}">
+          <i class="fas fa-play mr-2"></i> Start Activity
+        </button>
+      </div>
+      {% else %}
+      <div id="activePanel" class="space-y-4">
+        <button type="button" id="markDoneBtn" disabled
+                class="w-full py-3.5 bg-slate-200 text-slate-400 rounded-xl font-bold cursor-not-allowed transition">
+          <i class="fas fa-check mr-2"></i> Mark Done
+        </button>
+        <p id="timerHint" class="text-xs text-center text-slate-500">Complete the activity duration to enable completion.</p>
+      </div>
+      {% endif %}
+    </div>
+  </div>
+</div>
+
+<!-- Start proof modal -->
+<div id="sessionStartProofModal" class="hidden fixed inset-0 bg-slate-900/80 backdrop-blur-sm z-[10003] flex items-center justify-center p-4">
+  <div class="bg-white w-full max-w-md rounded-3xl shadow-2xl overflow-hidden">
+    <div class="bg-gradient-to-r from-emerald-600 to-teal-600 px-6 py-5 text-white">
+      <h3 class="text-lg font-bold">Confirm Activity Start</h3>
+      <p class="text-emerald-100 text-sm mt-1">Please upload proof before starting your activity.</p>
+    </div>
+    <div class="p-6 space-y-4">
+      <p class="text-xs text-slate-500">Upload image, video, PDF, or document (e.g. walking selfie, gym photo, hospital slip).</p>
+      <input type="file" id="sessionStartProof" accept="image/*,video/*,.pdf,.doc,.docx"
+             class="w-full text-sm text-slate-600 file:mr-3 file:py-2.5 file:px-4 file:rounded-xl file:border-0 file:bg-emerald-50 file:text-emerald-700 file:font-semibold">
+      <p id="sessionStartError" class="text-xs text-red-600 hidden"></p>
+      <div class="flex flex-col gap-2">
+        <button type="button" id="sessionStartConfirmBtn" class="w-full py-3 bg-emerald-600 text-white rounded-xl font-bold hover:bg-emerald-700">Upload &amp; Start</button>
+        <button type="button" id="sessionStartCancelBtn" class="w-full py-3 bg-slate-100 text-slate-700 rounded-xl font-semibold hover:bg-slate-200">Cancel</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Completion modal -->
+<div id="completionModal" class="hidden fixed inset-0 bg-slate-900/80 backdrop-blur-sm z-[10004] flex items-center justify-center p-4">
+  <div class="bg-white w-full max-w-md rounded-3xl shadow-2xl overflow-hidden">
+    <div class="bg-gradient-to-r from-blue-600 to-violet-600 px-6 py-5 text-white">
+      <h3 class="text-lg font-bold">Complete Activity</h3>
+      <p class="text-blue-100 text-sm mt-1">Upload proof to finish your activity.</p>
+    </div>
+    <div class="p-6 space-y-4">
+      <textarea id="completionNotes" rows="2" placeholder="Optional notes — how did it go?"
+                class="w-full px-3 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm resize-none"></textarea>
+      <input type="file" id="completionProof" accept="image/*,video/*,.pdf,.doc,.docx"
+             class="w-full text-sm text-slate-600 file:mr-3 file:py-2.5 file:px-4 file:rounded-xl file:border-0 file:bg-blue-50 file:text-blue-700 file:font-semibold">
+      <p id="completionError" class="text-xs text-red-600 hidden"></p>
+      <div class="flex flex-col gap-2">
+        <button type="button" id="confirmDoneBtn" class="w-full py-3 bg-emerald-600 text-white rounded-xl font-bold hover:bg-emerald-700">Upload &amp; Complete</button>
+        <button type="button" id="cancelCompleteBtn" class="w-full py-3 bg-slate-100 text-slate-700 rounded-xl font-semibold hover:bg-slate-200">Cancel</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script src="{% static 'js/activity_timer.js' %}?v=1"></script>
+<script>
+(function() {
+  const LOG_ID = {{ log.id }};
+  const PHASE = '{{ phase }}';
+  const SCHEDULED_ISO = '{{ scheduled_time_iso|escapejs }}';
+  const STARTED_ISO = '{{ started_at_iso|escapejs }}';
+  const DURATION_SEC = {{ duration_seconds }};
+  const CAN_START_INIT = {{ can_start_now|yesno:"true,false" }};
+
+  const csrfToken = document.querySelector('[name=csrfmiddlewaretoken]')?.value ||
+    document.cookie.match(/csrftoken=([^;]+)/)?.[1] || '';
+
+  const countdownEl = document.getElementById('activityCountdown');
+  const labelEl = document.getElementById('activityTimerLabel');
+  const AT = window.ActivityTimer;
+
+  let timerDone = false;
+
+  function tickTimer() {
+    if (PHASE === 'ready') {
+      const sec = AT.secondsUntilScheduled(SCHEDULED_ISO);
+      if (sec > 0) {
+        labelEl.textContent = 'Starts in';
+        countdownEl.textContent = AT.formatMMSS(sec);
+      } else {
+        labelEl.textContent = 'Due now';
+        countdownEl.textContent = '00:00';
+        const btn = document.getElementById('startActivityBtn');
+        const banner = document.getElementById('readyBanner');
+        const hint = document.getElementById('preStartHint');
+        if (btn) {
+          btn.disabled = false;
+          btn.className = 'w-full py-3.5 rounded-xl font-bold transition bg-blue-600 text-white hover:bg-blue-700';
+        }
+        if (banner) banner.classList.remove('hidden');
+        if (hint) hint.classList.add('hidden');
+      }
+      return;
+    }
+
+    const remaining = AT.secondsRemaining(STARTED_ISO, DURATION_SEC);
+    countdownEl.textContent = AT.formatMMSS(remaining);
+    const pct = Math.min(100, ((DURATION_SEC - remaining) / DURATION_SEC) * 100);
+    const ring = document.getElementById('timerRing');
+    if (ring) ring.setAttribute('stroke-dasharray', pct + ', 100');
+
+    if (remaining <= 0 && !timerDone) {
+      timerDone = true;
+      const btn = document.getElementById('markDoneBtn');
+      if (btn) {
+        btn.disabled = false;
+        btn.className = 'w-full py-3.5 bg-emerald-600 text-white rounded-xl font-bold hover:bg-emerald-700 transition cursor-pointer';
+      }
+      const hint = document.getElementById('timerHint');
+      if (hint) hint.textContent = 'Duration complete — upload proof to finish.';
+    }
+  }
+
+  setInterval(tickTimer, 1000);
+  tickTimer();
+
+  if (PHASE === 'ready') {
+    const startBtn = document.getElementById('startActivityBtn');
+    const startModal = document.getElementById('sessionStartProofModal');
+
+    startBtn?.addEventListener('click', () => {
+      if (AT.secondsUntilScheduled(SCHEDULED_ISO) > 0) return;
+      document.getElementById('sessionStartProof').value = '';
+      document.getElementById('sessionStartError').classList.add('hidden');
+      startModal.classList.remove('hidden');
+    });
+
+    document.getElementById('sessionStartCancelBtn').onclick = () => startModal.classList.add('hidden');
+
+    document.getElementById('sessionStartConfirmBtn').onclick = async () => {
+      const proof = document.getElementById('sessionStartProof').files[0];
+      const errEl = document.getElementById('sessionStartError');
+      if (!proof) {
+        errEl.textContent = 'Proof upload is required to start.';
+        errEl.classList.remove('hidden');
+        return;
+      }
+      const btn = document.getElementById('sessionStartConfirmBtn');
+      btn.disabled = true;
+      btn.textContent = 'Starting…';
+      const fd = new FormData();
+      fd.append('start_proof', proof);
+      const resp = await fetch('/medicines/activities/start/' + LOG_ID + '/', {
+        method: 'POST', headers: { 'X-CSRFToken': csrfToken }, body: fd,
+      });
+      const data = await resp.json();
+      btn.disabled = false;
+      btn.textContent = 'Upload & Start';
+      if (data.success) {
+        window.location.href = data.redirect;
+      } else {
+        errEl.textContent = data.message || data.error || 'Unable to start activity';
+        errEl.classList.remove('hidden');
+      }
+    };
+  }
+
+  if (PHASE === 'active') {
+    document.getElementById('markDoneBtn').addEventListener('click', () => {
+      if (!AT.isSessionComplete(STARTED_ISO, DURATION_SEC)) {
+        if (window.showToast) showToast('warning', 'Timer Active', 'Complete the activity duration to enable completion.');
+        return;
+      }
+      document.getElementById('completionProof').value = '';
+      document.getElementById('completionError').classList.add('hidden');
+      document.getElementById('completionModal').classList.remove('hidden');
+    });
+
+    document.getElementById('cancelCompleteBtn').onclick = () => {
+      document.getElementById('completionModal').classList.add('hidden');
+    };
+
+    document.getElementById('confirmDoneBtn').addEventListener('click', async () => {
+      const notes = document.getElementById('completionNotes').value;
+      const proof = document.getElementById('completionProof').files[0];
+      const errEl = document.getElementById('completionError');
+      if (!proof) {
+        errEl.textContent = 'Completion proof is required.';
+        errEl.classList.remove('hidden');
+        return;
+      }
+      errEl.classList.add('hidden');
+      const fd = new FormData();
+      fd.append('notes', notes);
+      fd.append('proof_upload', proof);
+      const btn = document.getElementById('confirmDoneBtn');
+      btn.disabled = true;
+      btn.textContent = 'Completing…';
+      const resp = await fetch('/medicines/activities/complete/' + LOG_ID + '/', {
+        method: 'POST', headers: { 'X-CSRFToken': csrfToken }, body: fd,
+      });
+      const data = await resp.json();
+      btn.disabled = false;
+      btn.textContent = 'Upload & Complete';
+      if (data.success) {
+        if (window.showToast) showToast('success', 'Activity Complete', data.message);
+        setTimeout(() => { window.location.href = '/medicines/activities/'; }, 1200);
+      } else {
+        errEl.textContent = data.message || data.error || 'Could not complete activity';
+        errEl.classList.remove('hidden');
+      }
+    });
+  }
+})();
+</script>
+{% endblock %}

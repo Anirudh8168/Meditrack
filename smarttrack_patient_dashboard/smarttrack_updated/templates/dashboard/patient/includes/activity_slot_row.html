@@ -1,0 +1,40 @@
+{# Compact today slot row — minimal text #}
+<div class="flex items-center justify-between gap-3 py-2.5 px-3 rounded-xl hover:bg-slate-50 transition group">
+  <div class="flex items-center gap-3 min-w-0 flex-1">
+    <div class="w-9 h-9 rounded-lg flex items-center justify-center flex-shrink-0
+      {% if item.status == 'completed' %}bg-emerald-100 text-emerald-600
+      {% elif item.status == 'missed' %}bg-red-100 text-red-600
+      {% elif item.status == 'in_progress' %}bg-amber-100 text-amber-600
+      {% elif item.is_upcoming %}bg-slate-100 text-slate-500
+      {% else %}bg-blue-100 text-blue-600{% endif %}">
+      <i class="fas {% if item.status == 'completed' %}fa-check{% elif item.status == 'missed' %}fa-times{% elif item.status == 'in_progress' %}fa-hourglass-half{% else %}fa-circle-check{% endif %} text-xs"></i>
+    </div>
+    <div class="min-w-0">
+      <div class="font-semibold text-slate-800 text-sm truncate">{{ item.title }}</div>
+      {% if item.status == 'completed' %}
+      <div class="text-xs text-emerald-600 font-medium">{{ item.status_label }}</div>
+      <div class="text-xs text-slate-500">{{ item.duration_minutes }} Minutes
+        {% if item.started_at_display %} · Started: {{ item.started_at_display }}{% endif %}
+        {% if item.completed_at_display %} · Finished: {{ item.completed_at_display }}{% endif %}
+      </div>
+      {% elif item.status == 'missed' %}
+      <div class="text-xs text-slate-500">{{ item.time_display }} · {{ item.duration_minutes }} min</div>
+      <div class="text-xs text-red-500">{{ item.missed_reason|default:"Missed" }}</div>
+      {% else %}
+      <div class="text-xs text-slate-500">{{ item.time_display }} · {{ item.duration_minutes }} min</div>
+      {% endif %}
+    </div>
+  </div>
+  <div class="flex items-center gap-2 flex-shrink-0">
+    {% if item.status != 'completed' and item.status != 'missed' %}
+    <span class="text-xs font-medium
+      {% if item.status == 'in_progress' %}text-amber-600
+      {% else %}text-slate-500{% endif %}">{{ item.status_label }}</span>
+    {% endif %}
+    {% if item.in_progress %}
+    <a href="{% url 'activity_session' item.log_id %}" class="text-xs px-2.5 py-1 rounded-lg bg-amber-500 text-white font-semibold">Continue</a>
+    {% elif item.can_start %}
+    <button type="button" onclick="startActivity({{ item.log_id }})" class="text-xs px-2.5 py-1 rounded-lg bg-blue-600 text-white font-semibold">Start</button>
+    {% endif %}
+  </div>
+</div>

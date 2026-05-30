@@ -1,0 +1,48 @@
+{% extends 'base_dashboard.html' %}
+{% block title %}Emergency History{% endblock %}
+{% block page_title %}Emergency Request History{% endblock %}
+{% block page_subtitle %}All emergency consultations · full record{% endblock %}
+
+{% block content %}
+<div class="mb-4">
+  <a href="/dashboard/doctor/" class="text-sm text-blue-600 hover:underline font-semibold"><i class="fas fa-arrow-left mr-1"></i> Back to Dashboard</a>
+</div>
+
+{% if history %}
+<div class="space-y-3 max-w-3xl">
+  {% for apt in history %}
+  <div class="bg-white rounded-2xl border border-slate-100 shadow-sm p-5 hover:border-amber-200 transition">
+    <div class="flex flex-wrap items-start justify-between gap-3 mb-3">
+      <div>
+        <div class="font-bold text-slate-800">{{ apt.patient.get_full_name }}</div>
+        <div class="text-xs text-slate-500 mt-0.5">{{ apt.get_appointment_type_display }} · {{ apt.appointment_date|date:"l, M j, Y" }}</div>
+      </div>
+      <span class="text-xs px-3 py-1 rounded-full font-semibold {{ apt.emergency_badge.bg }} {{ apt.emergency_badge.text }}">
+        {{ apt.emergency_badge.icon }} {{ apt.emergency_badge.label }}
+      </span>
+    </div>
+    <div class="text-sm text-slate-600 mb-2">
+      <i class="fas fa-clock text-slate-400 mr-1"></i>
+      {% with event_time=apt.get_emergency_event_datetime %}
+      {% if event_time %}{{ event_time|date:"g:i A, M j, Y" }}{% else %}{{ apt.appointment_time|time:"g:i A" }}{% endif %}
+      {% endwith %}
+    </div>
+    {% with reason=apt.get_emergency_history_reason %}
+    {% if reason %}
+    <p class="text-sm text-slate-500 mb-3"><strong>Reason:</strong> {{ reason }}</p>
+    {% endif %}
+    {% endwith %}
+    <div class="flex gap-2 flex-wrap">
+      <a href="/appointments/detail/{{ apt.id }}/" class="px-3 py-1.5 bg-slate-100 text-slate-700 text-xs rounded-lg font-semibold hover:bg-slate-200">View Details</a>
+      <a href="/dashboard/doctor/patient/{{ apt.patient.id }}/" class="px-3 py-1.5 bg-blue-50 text-blue-700 text-xs rounded-lg font-semibold hover:bg-blue-100">Contact Patient</a>
+    </div>
+  </div>
+  {% endfor %}
+</div>
+{% else %}
+<div class="text-center py-16 text-slate-400">
+  <i class="fas fa-history text-4xl mb-3 opacity-30"></i>
+  <p class="text-sm">No emergency consultation history yet.</p>
+</div>
+{% endif %}
+{% endblock %}

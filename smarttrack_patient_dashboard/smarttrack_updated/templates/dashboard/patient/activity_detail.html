@@ -1,0 +1,215 @@
+{% extends 'base_dashboard.html' %}
+{% load static %}
+{% block title %}{{ detail.activity.title }}{% endblock %}
+{% block page_title %}{{ detail.activity.title }}{% endblock %}
+{% block page_subtitle %}{{ detail.frequency_label }} · {{ detail.activity.get_activity_type_display }}{% endblock %}
+
+{% block content %}
+<a href="{% if patient_profile_url %}{{ patient_profile_url }}{% else %}{% url 'activity_list' %}{% endif %}" class="inline-flex items-center gap-2 text-sm text-slate-500 hover:text-slate-800 mb-5">
+  <i class="fas fa-arrow-left"></i> {% if patient_profile_url %}Back to Patient Profile{% else %}Back to Activities{% endif %}
+</a>
+
+<div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+  <div class="lg:col-span-2 space-y-5">
+    <div class="bg-white rounded-2xl border border-slate-100 p-6">
+      <div class="flex flex-wrap items-start justify-between gap-3 mb-4">
+        <div>
+          <span class="text-xs px-2 py-0.5 rounded-full bg-violet-50 text-violet-700 font-semibold">{{ detail.frequency_label }}</span>
+          <h2 class="text-xl font-bold text-slate-800 mt-2">{{ detail.activity.title }}</h2>
+          <p class="text-sm text-slate-500">{{ detail.activity.get_activity_type_display }} · {{ detail.activity.duration_minutes }} min</p>
+        </div>
+        <div class="flex items-start gap-3">
+          <div class="text-right">
+            <div class="text-2xl font-black text-blue-600">{{ detail.compliance.compliance_pct }}%</div>
+            <div class="text-xs text-slate-500">30-day compliance</div>
+          </div>
+          {% if can_manage %}
+          <div class="relative" data-activity-menu-wrap>
+            <button type="button" data-activity-menu-toggle
+                    class="w-9 h-9 flex items-center justify-center rounded-lg border border-slate-200 text-slate-500 hover:bg-slate-50"
+                    aria-label="Actions">
+              <i class="fas fa-ellipsis-v"></i>
+            </button>
+            <div data-activity-menu-dropdown
+                 class="hidden absolute right-0 top-full mt-1 w-44 bg-white rounded-xl border border-slate-100 shadow-lg z-20 py-1 text-sm">
+              <a href="{% url 'edit_activity' detail.activity.id %}"
+                 class="flex items-center gap-2 px-3 py-2 text-slate-700 hover:bg-slate-50">
+                <i class="fas fa-pen w-4 text-slate-400"></i> Edit Activity
+              </a>
+              <button type="button"
+                      data-delete-activity
+                      data-activity-id="{{ detail.activity.id }}"
+                      data-activity-title="{{ detail.activity.title|escapejs }}"
+                      data-schedule-label="{{ detail.frequency_label }} · {{ detail.times_label|escapejs }}"
+                data-is-recurring="{% if detail.activity.schedule_type != 'one_time' %}1{% else %}0{% endif %}"
+                {% if patient_profile_url %}data-redirect="{{ patient_profile_url }}"{% endif %}
+                class="w-full flex items-center gap-2 px-3 py-2 text-red-600 hover:bg-red-50 text-left">
+                <i class="fas fa-trash-can w-4"></i> Delete Activity
+              </button>
+            </div>
+          </div>
+          {% endif %}
+        </div>
+      </div>
+
+      {% if detail.activity.description %}
+      <div class="mb-4 p-4 bg-slate-50 rounded-xl">
+        <div class="text-xs font-semibold text-slate-500 uppercase mb-1">Instructions</div>
+        <p class="text-sm text-slate-700">{{ detail.activity.description }}</p>
+      </div>
+      {% endif %}
+
+      <div class="grid grid-cols-2 gap-4 text-sm">
+        <div><span class="text-slate-500">Schedule times</span><div class="font-semibold text-slate-800">{{ detail.times_label }}</div></div>
+        <div><span class="text-slate-500">Next session</span><div class="font-semibold text-slate-800">{{ detail.next_label }}</div></div>
+        <div><span class="text-slate-500">Start date</span><div class="font-semibold text-slate-800">{{ detail.activity.start_date|date:"M j, Y"|default:"—" }}</div></div>
+        <div><span class="text-slate-500">End date</span><div class="font-semibold text-slate-800">{% if detail.activity.end_date %}{{ detail.activity.end_date|date:"M j, Y" }}{% else %}Ongoing{% endif %}</div></div>
+        <div><span class="text-slate-500">Prescribed by</span><div class="font-semibold text-slate-800">{{ detail.prescribed_by }}</div></div>
+        <div><span class="text-slate-500">Status</span><div class="font-semibold text-emerald-700">{% if detail.activity.is_active %}Active{% else %}Inactive{% endif %}</div></div>
+        <div><span class="text-slate-500">Reminders</span><div class="font-semibold text-slate-800">{% if detail.activity.reminders_enabled %}Enabled{% else %}Off{% endif %}</div></div>
+        <div><span class="text-slate-500">Proof required</span><div class="font-semibold text-slate-800">{% if detail.activity.requires_proof %}Yes{% else %}No{% endif %}</div></div>
+      </div>
+
+      {% if can_manage %}
+      <div class="flex gap-2 mt-5 pt-4 border-t border-slate-100">
+        <a href="{% url 'edit_activity' detail.activity.id %}"
+           class="px-4 py-2 bg-blue-600 text-white rounded-xl text-sm font-semibold hover:bg-blue-700 transition">
+          <i class="fas fa-pen mr-1"></i> Edit
+        </a>
+        <button type="button"
+                data-delete-activity
+                data-activity-id="{{ detail.activity.id }}"
+                data-activity-title="{{ detail.activity.title|escapejs }}"
+                data-schedule-label="{{ detail.frequency_label }} · {{ detail.times_label|escapejs }}"
+                data-is-recurring="{% if detail.activity.schedule_type != 'one_time' %}1{% else %}0{% endif %}"
+                {% if patient_profile_url %}data-redirect="{{ patient_profile_url }}"{% endif %}
+                class="px-4 py-2 bg-red-50 text-red-700 rounded-xl text-sm font-semibold hover:bg-red-100 transition">
+          <i class="fas fa-trash-can mr-1"></i> Delete
+        </button>
+      </div>
+      {% endif %}
+    </div>
+
+    <div class="bg-white rounded-2xl border border-slate-100 p-6">
+      <h3 class="font-bold text-slate-800 mb-4">Recent Sessions</h3>
+      {% if detail.recent_logs %}
+      <div class="space-y-2">
+        {% for log in detail.recent_logs|slice:":10" %}
+        <div class="py-3 border-b border-slate-50 last:border-0 text-sm">
+          <div class="flex items-center justify-between gap-2">
+            <div>
+              <span class="font-medium text-slate-800">{{ log.scheduled_time|date:"M j" }} · {{ log.scheduled_time|time:"g:i A" }}</span>
+              {% if log.started_at %}
+              <span class="text-xs text-slate-400 ml-2">Started {{ log.started_at|time:"g:i A" }}</span>
+              {% endif %}
+              {% if log.completed_at %}
+              <span class="text-xs text-slate-400 ml-1">→ Finished {{ log.completed_at|time:"g:i A" }}</span>
+              {% endif %}
+            </div>
+            <span class="text-xs px-2 py-0.5 rounded-full font-semibold
+              {% if log.status == 'completed' %}bg-emerald-50 text-emerald-700
+              {% elif log.status == 'missed' %}bg-red-50 text-red-700
+              {% elif log.status == 'in_progress' %}bg-amber-50 text-amber-700
+              {% else %}bg-slate-100 text-slate-600{% endif %}">{{ log.get_status_display }}</span>
+          </div>
+          {% if log.missed_reason and log.status == 'missed' %}
+          <p class="text-xs text-red-500 mt-1">{{ log.missed_reason }}</p>
+          {% endif %}
+          {% if log.notes %}
+          <p class="text-xs text-slate-500 mt-1">{{ log.notes|truncatechars:80 }}</p>
+          {% endif %}
+          <div class="flex flex-wrap gap-2 mt-1.5">
+            {% if log.start_proof_upload %}
+            <a href="{{ log.start_proof_upload.url }}" target="_blank" rel="noopener"
+               class="text-[11px] px-2 py-0.5 rounded-lg bg-blue-50 text-blue-700 font-semibold hover:bg-blue-100">
+              <i class="fas fa-image mr-1"></i> Start Proof
+            </a>
+            {% endif %}
+            {% if log.proof_upload %}
+            <a href="{{ log.proof_upload.url }}" target="_blank" rel="noopener"
+               class="text-[11px] px-2 py-0.5 rounded-lg bg-emerald-50 text-emerald-700 font-semibold hover:bg-emerald-100">
+              <i class="fas fa-check-circle mr-1"></i> Completion Proof
+            </a>
+            {% endif %}
+            {% if log.marked_by %}
+            <span class="text-[11px] text-slate-400">By {{ log.marked_by.get_full_name }}</span>
+            {% endif %}
+          </div>
+        </div>
+        {% endfor %}
+      </div>
+      {% else %}
+      <p class="text-sm text-slate-400">No sessions recorded yet.</p>
+      {% endif %}
+    </div>
+
+    {% if detail.audit_logs %}
+    <div class="bg-white rounded-2xl border border-slate-100 p-6">
+      <h3 class="font-bold text-slate-800 mb-4">Activity History</h3>
+      <div class="space-y-4">
+        {% for entry in detail.audit_logs %}
+        <div class="border-l-2 {% if entry.action == 'deleted' %}border-red-300{% elif entry.action == 'created' %}border-emerald-300{% else %}border-blue-300{% endif %} pl-4 py-1">
+          <div class="text-xs text-slate-400">{{ entry.created_at|date:"M j, Y · g:i A" }}</div>
+          <div class="text-sm font-semibold text-slate-800 mt-0.5">
+            Activity {% if entry.action == 'created' %}created{% elif entry.action == 'updated' %}updated{% else %}deleted{% endif %}
+            {% if entry.get_scope_display %}<span class="text-slate-400 font-normal">· {{ entry.get_scope_display }}</span>{% endif %}
+          </div>
+          {% if entry.changes %}
+          <div class="mt-2 text-xs text-slate-600 space-y-1">
+            {% for field, diff in entry.changes.items %}
+            <div>
+              <span class="font-medium capitalize">{{ field|cut:"_" }}</span>:
+              {% if diff.old %}<span class="text-slate-400">{{ diff.old }}</span> → {% endif %}
+              <span class="text-slate-800">{{ diff.new|default:diff }}</span>
+            </div>
+            {% endfor %}
+          </div>
+          {% endif %}
+          {% if entry.reason %}
+          <div class="mt-1 text-xs text-slate-500">Reason: {{ entry.reason }}</div>
+          {% endif %}
+          {% if entry.user %}
+          <div class="mt-1 text-xs text-slate-400">By: {{ entry.user.get_full_name|default:entry.user.username }}</div>
+          {% endif %}
+        </div>
+        {% endfor %}
+      </div>
+    </div>
+    {% endif %}
+  </div>
+
+  <div class="space-y-4">
+    <div class="bg-white rounded-2xl border border-slate-100 p-5">
+      <h3 class="font-bold text-slate-800 text-sm mb-3">Compliance Summary</h3>
+      <div class="space-y-3 text-sm">
+        <div class="flex justify-between"><span class="text-slate-500">Completed</span><span class="font-bold text-emerald-600">{{ detail.compliance.completed }}</span></div>
+        <div class="flex justify-between"><span class="text-slate-500">Missed</span><span class="font-bold text-red-600">{{ detail.compliance.missed }}</span></div>
+        <div class="flex justify-between"><span class="text-slate-500">Total tracked</span><span class="font-bold text-slate-800">{{ detail.compliance.total }}</span></div>
+      </div>
+    </div>
+
+    {% if detail.missed_logs %}
+    <div class="bg-red-50 rounded-2xl border border-red-100 p-5">
+      <h3 class="font-bold text-red-800 text-sm mb-3">Missed History</h3>
+      <div class="space-y-2">
+        {% for log in detail.missed_logs|slice:":5" %}
+        <div class="text-xs text-red-700">{{ log.scheduled_time|date:"M j, g:i A" }}</div>
+        {% endfor %}
+      </div>
+    </div>
+    {% endif %}
+
+    {% for log in detail.completed_logs %}
+      {% if log.proof_upload %}
+      <div class="bg-white rounded-2xl border border-slate-100 p-5">
+        <h3 class="font-bold text-slate-800 text-sm mb-2">Proof Upload</h3>
+        <a href="{{ log.proof_upload.url }}" target="_blank" class="text-sm text-blue-600 hover:underline">{{ log.completed_at|date:"M j" }} — View file</a>
+      </div>
+      {% endif %}
+    {% endfor %}
+  </div>
+</div>
+
+{% include 'dashboard/patient/includes/activity_delete_modal.html' %}
+<script src="{% static 'js/activity_actions.js' %}?v=1"></script>
+{% endblock %}
