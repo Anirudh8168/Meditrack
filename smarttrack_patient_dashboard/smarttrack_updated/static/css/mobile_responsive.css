@@ -1,0 +1,481 @@
+/* ================================================================
+   SmartTrack — Mobile Responsive Overrides
+   Fixes sidebar, tables, cards, forms, and layout for phones/tablets
+   Desktop (≥1024px) is completely UNCHANGED.
+   ================================================================ */
+
+/* ─── Sidebar backdrop overlay (mobile only) ─── */
+#sidebarBackdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(15, 23, 42, 0.55);
+  z-index: 45;
+  display: none;
+  backdrop-filter: blur(2px);
+  -webkit-backdrop-filter: blur(2px);
+  transition: opacity 0.25s ease;
+}
+#sidebarBackdrop.active { display: block; }
+
+/* ─── Sidebar hide on mobile, always-visible on desktop ─── */
+@media (max-width: 1023px) {
+  #sidebar {
+    transform: translateX(-100%);
+    transition: transform 0.28s cubic-bezier(0.4, 0, 0.2, 1);
+    z-index: 50;
+  }
+  #sidebar.sidebar-open {
+    transform: translateX(0);
+    box-shadow: 4px 0 30px rgba(0,0,0,0.35);
+  }
+
+  /* Main content: no left margin on mobile (no sidebar offset needed) */
+  main {
+    margin-left: 0 !important;
+  }
+
+  /* Close (×) button inside sidebar — shown on mobile only */
+  .sidebar-close-btn {
+    display: flex !important;
+  }
+}
+
+@media (min-width: 1024px) {
+  /* Desktop: sidebar always visible, never transformed */
+  #sidebar {
+    transform: translateX(0) !important;
+  }
+  /* Close button hidden on desktop */
+  .sidebar-close-btn {
+    display: none !important;
+  }
+  /* Main content left offset on desktop */
+  main {
+    margin-left: 16rem; /* 256px = w-64 */
+  }
+}
+
+/* ─── Header adjustments on mobile ─── */
+@media (max-width: 1023px) {
+  /* Shrink header padding */
+  main > header {
+    padding-left: 1rem;
+    padding-right: 1rem;
+    padding-top: 0.75rem;
+    padding-bottom: 0.75rem;
+  }
+  main > header .flex.items-center.gap-4 {
+    gap: 0.5rem;
+  }
+  /* Page title font size */
+  main > header h1 {
+    font-size: 1rem;
+    line-height: 1.35;
+  }
+  main > header p.text-xs.text-slate-500 {
+    display: none; /* hide subtitle on very small screens */
+  }
+  /* Header right icons spacing */
+  main > header .flex.items-center.gap-3 {
+    gap: 0.5rem;
+  }
+}
+
+@media (max-width: 639px) {
+  /* Profile circle: shrink slightly */
+  main > header .w-9.h-9 {
+    width: 2rem;
+    height: 2rem;
+    font-size: 0.75rem;
+  }
+}
+
+/* ─── Page padding ─── */
+@media (max-width: 1023px) {
+  .p-6 {
+    padding: 1rem !important;
+  }
+}
+@media (max-width: 639px) {
+  .p-6 {
+    padding: 0.75rem !important;
+  }
+}
+
+/* ─── Tables: scrollable on mobile ─── */
+@media (max-width: 1023px) {
+  /* Wrap any table in overflow scroll */
+  .data-table {
+    display: block;
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+    min-width: 100%;
+  }
+  .data-table th,
+  .data-table td {
+    white-space: nowrap;
+    padding: 10px 12px;
+    font-size: 0.8125rem;
+  }
+
+  /* Standalone table elements in templates */
+  table.min-w-full,
+  table[class*="min-w"] {
+    min-width: 600px;
+  }
+  /* Auto-scroll wrapper for any overflow table container */
+  .overflow-x-auto {
+    -webkit-overflow-scrolling: touch;
+    scrollbar-width: thin;
+  }
+  /* Force any table parent to scroll, not clip */
+  div:has(> table) {
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+  }
+}
+
+/* ─── Stat/Metric Cards ─── */
+@media (max-width: 767px) {
+  /* 2-column stat grids: keep 2-cols, reduce padding */
+  .grid.grid-cols-2 > *,
+  .grid.grid-cols-2.md\:grid-cols-4 > * {
+    padding: 0.875rem !important;
+  }
+  /* Larger text stat numbers on very small phones */
+  .text-3xl { font-size: 1.5rem !important; }
+  .text-2xl { font-size: 1.25rem !important; }
+}
+
+@media (max-width: 479px) {
+  /* On tiny screens, 1-column for heavy cards */
+  .grid.grid-cols-2.xs\:grid-cols-1 { grid-template-columns: 1fr; }
+}
+
+/* ─── Dashboard cards: remove hover lift on touch devices ─── */
+@media (hover: none) {
+  .stat-card:hover,
+  .hover-card:hover {
+    transform: none;
+    box-shadow: none;
+  }
+}
+
+/* ─── Forms ─── */
+@media (max-width: 767px) {
+  /* Full-width inputs and selects on mobile */
+  .grid.grid-cols-2 > div > input,
+  .grid.grid-cols-2 > div > select,
+  .grid.grid-cols-2 > div > textarea {
+    width: 100%;
+  }
+  /* 2-col form grids → 1-col on mobile */
+  .grid.grid-cols-2.md\:grid-cols-2:not(.stat-grid) {
+    grid-template-columns: 1fr;
+  }
+  /* Form labels font size */
+  label { font-size: 0.8125rem; }
+  /* Smaller input padding on mobile */
+  input[type="text"],
+  input[type="email"],
+  input[type="password"],
+  input[type="tel"],
+  input[type="date"],
+  input[type="time"],
+  input[type="number"],
+  select,
+  textarea {
+    font-size: 16px; /* Prevent iOS zoom on focus */
+    padding: 0.625rem 0.875rem;
+  }
+}
+
+/* ─── Button groups: wrap on mobile ─── */
+@media (max-width: 639px) {
+  .flex.gap-2.flex-nowrap,
+  .flex.gap-3.flex-nowrap {
+    flex-wrap: wrap;
+  }
+  /* Action button rows */
+  .flex.items-center.justify-between {
+    flex-wrap: wrap;
+    gap: 0.5rem;
+  }
+}
+
+/* ─── Patient Dashboard specific ─── */
+@media (max-width: 767px) {
+  /* Countdown bar: compact layout */
+  #liveCountdownBar {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 0.5rem;
+    padding: 0.875rem;
+  }
+  #liveCountdownBar .text-right {
+    text-align: left;
+  }
+  /* Upcoming appointments: stack action buttons */
+  .flex.flex-wrap.gap-2 {
+    flex-wrap: wrap;
+  }
+}
+
+/* ─── Appointment Cards: mobile layout ─── */
+@media (max-width: 767px) {
+  /* Card header row: stack on very small screens */
+  .flex.items-start.justify-between,
+  .flex.items-center.justify-between {
+    gap: 0.5rem;
+  }
+  /* Join video button: full-width on mobile */
+  button[data-join-video],
+  a[data-join-video] {
+    width: 100%;
+    justify-content: center;
+  }
+}
+
+/* ─── Modals: full-screen on small mobile ─── */
+@media (max-width: 639px) {
+  /* Appointment/confirm modals */
+  .fixed.inset-0 > .bg-white.rounded-2xl {
+    width: 100%;
+    max-width: 100%;
+    margin: 0;
+    border-radius: 1rem 1rem 0 0;
+  }
+  /* Bottom-sheet style for small screens */
+  .fixed.inset-0.flex.items-center.justify-center {
+    align-items: flex-end;
+    padding: 0;
+  }
+  .fixed.inset-0.flex.items-center.justify-center > div {
+    border-radius: 1.25rem 1.25rem 0 0;
+    max-width: 100%;
+    width: 100%;
+  }
+}
+
+/* ─── Video Call: mobile controls ─── */
+@media (max-width: 767px) {
+  /* Control bar: compact on mobile */
+  #video-call-container .h-24 {
+    height: auto;
+    padding: 0.75rem 1rem;
+    gap: 0.75rem;
+  }
+  /* Control buttons: slightly smaller */
+  #video-call-container .h-24 button.w-12 {
+    width: 2.75rem;
+    height: 2.75rem;
+  }
+  #video-call-container .h-24 button.w-14 {
+    width: 3rem;
+    height: 3rem;
+  }
+  /* Timer: move to center instead of right side */
+  #video-call-container .absolute.right-8 {
+    position: static;
+    text-align: center;
+  }
+  /* Local video PiP: smaller on mobile */
+  #video-call-container .w-32.h-44 {
+    width: 5rem !important;
+    height: 7rem !important;
+  }
+}
+
+/* ─── Notification Drawer ─── */
+@media (max-width: 639px) {
+  #notifDrawer {
+    max-width: 100%;
+    width: 100%;
+  }
+}
+
+/* ─── Profile Pages ─── */
+@media (max-width: 767px) {
+  /* Profile header: stack avatar and info */
+  .flex.items-center.gap-6 {
+    flex-wrap: wrap;
+    gap: 1rem;
+  }
+  /* Avatar doesn't stretch */
+  .w-24.h-24,
+  .w-20.h-20 {
+    flex-shrink: 0;
+  }
+}
+
+/* ─── Earnings / Doctor tables ─── */
+@media (max-width: 1023px) {
+  /* Earnings stat cards: 2 cols */
+  .grid.grid-cols-4 {
+    grid-template-columns: repeat(2, 1fr);
+  }
+  .grid.grid-cols-3 {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+@media (max-width: 639px) {
+  .grid.grid-cols-4,
+  .grid.grid-cols-3 {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* ─── Report List / Detail ─── */
+@media (max-width: 767px) {
+  /* Full-width report cards */
+  .grid.grid-cols-2.md\:grid-cols-3,
+  .grid.md\:grid-cols-3 {
+    grid-template-columns: 1fr;
+  }
+  .grid.md\:grid-cols-2 {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* ─── Health Analytics ─── */
+@media (max-width: 767px) {
+  /* Chart container: set min-height to avoid collapse */
+  canvas {
+    max-height: 220px;
+  }
+}
+
+/* ─── Medicine Cards ─── */
+@media (max-width: 639px) {
+  /* Stack any 2-col medicine grid to 1-col */
+  .grid.grid-cols-1.md\:grid-cols-2,
+  .grid.md\:grid-cols-2 {
+    grid-template-columns: 1fr;
+  }
+  .grid.sm\:grid-cols-2 {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* ─── System Admin base.html sidebar ─── */
+@media (max-width: 1023px) {
+  #adminSidebar {
+    transform: translateX(-100%);
+    transition: transform 0.28s ease;
+  }
+  #adminSidebar.sidebar-open {
+    transform: translateX(0);
+  }
+  .admin-main {
+    margin-left: 0 !important;
+  }
+}
+
+/* ─── Prevent horizontal body scroll ─── */
+body { overflow-x: hidden; }
+*, *::before, *::after { max-width: 100%; }
+img, video { max-width: 100%; height: auto; }
+pre, code { overflow-x: auto; }
+
+/* ─── Typography: prevent tiny unreadable text on mobile ─── */
+@media (max-width: 767px) {
+  .text-xs { font-size: 0.75rem; }
+  /* Don't let badge text become invisible */
+  .text-\[10px\] { font-size: 0.6875rem; }
+}
+
+/* ─── Mobile: sticky bottom action bar helper ─── */
+@media (max-width: 767px) {
+  .mobile-sticky-action {
+    position: sticky;
+    bottom: 0;
+    z-index: 20;
+    background: #fff;
+    padding: 0.75rem 1rem;
+    border-top: 1px solid #e2e8f0;
+    box-shadow: 0 -4px 16px rgba(0,0,0,0.06);
+  }
+}
+
+/* ─── Touch-friendly tap targets ─── */
+@media (max-width: 1023px) {
+  .sidebar-link {
+    padding: 12px 14px;
+    min-height: 44px;
+    display: flex;
+    align-items: center;
+  }
+  button, a[role="button"] {
+    min-height: 40px;
+  }
+}
+
+/* ─── Caregiver Mode Banner ─── */
+@media (max-width: 639px) {
+  .absolute.top-full.left-0.right-0.bg-teal-600 {
+    font-size: 0.75rem;
+    padding: 0.5rem 1rem;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+  }
+}
+
+/* ─── Global search bar: hidden on small screens (shown in drawer instead) ─── */
+@media (max-width: 767px) {
+  .hidden.md\:block {
+    display: none;
+  }
+}
+
+/* ─── Card overflow fix ─── */
+.rounded-2xl, .rounded-xl {
+  overflow: hidden;
+}
+/* But restore for dropdowns and modals */
+.relative:has(.absolute) {
+  overflow: visible;
+}
+
+/* ─── Fix any element with fixed px width that causes scroll ─── */
+@media (max-width: 767px) {
+  [style*="width: 600px"],
+  [style*="min-width: 600px"],
+  [style*="width: 700px"],
+  [style*="width: 800px"],
+  [style*="width:600px"],
+  [style*="width:700px"],
+  [style*="width:800px"] {
+    width: 100% !important;
+    min-width: unset !important;
+  }
+  .w-\[600px\], .w-\[700px\], .w-\[800px\] {
+    width: 100% !important;
+  }
+  /* Search input full width */
+  input[id="globalSearch"] {
+    width: 100%;
+  }
+}
+
+/* ─── Pharmacy finder panel ─── */
+@media (max-width: 639px) {
+  #pharmacyPanel,
+  #reminderPanel {
+    width: 100% !important;
+    max-width: 100%;
+    bottom: 0;
+    right: 0;
+    left: 0;
+    border-radius: 1.25rem 1.25rem 0 0;
+  }
+}
+
+/* ─── Toast notifications: full width on mobile ─── */
+@media (max-width: 639px) {
+  .toast {
+    bottom: 1rem;
+    right: 1rem;
+    left: 1rem;
+    max-width: calc(100% - 2rem);
+  }
+}

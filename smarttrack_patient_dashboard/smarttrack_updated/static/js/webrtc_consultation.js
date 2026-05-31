@@ -1,5 +1,13 @@
 /**
  * WebRTC consultation — offer/answer/ICE via Django signaling API.
+ *
+ * PRODUCTION FIXES:
+ *  1. Added TURN relay servers (required when both peers are behind NAT).
+ *     STUN alone fails on most mobile/corporate networks in production.
+ *  2. ICE restart on connection failure (reconnect without page reload).
+ *  3. Better error messages for production permission failures.
+ *  4. Reads TURN config from data-turn-* attributes (set via Django settings).
+ *  5. playsInline always set for iOS Safari compatibility.
  */
 (function () {
   function getCsrfToken(fallback) {
@@ -8,6 +16,69 @@
     if (fallback) return fallback;
     const match = document.cookie.match(/(?:^|;\s*)csrftoken=([^;]+)/);
     return match ? decodeURIComponent(match[1]) : '';
+  }
+
+  /**
+   * Build ICE server list.
+   * Priority: data attributes (from Django settings) > hard-coded public fallbacks.
+   *
+   * For production, set these environment variables in Render:
+   *   TURN_URL=turn:your-turn-server.com:3478
+   *   TURN_USERNAME=your-username
+   *   TURN_CREDENTIAL=your-credential
+   *
+   * Free option: https://www.metered.ca/tools/openrelay/ provides TURN free tier.
+   */
+  function buildIceServers(root) {
+    const turnUrl      = root?.dataset?.turnUrl      || '';
+    const turnUsername = root?.dataset?.turnUsername || '';
+    const turnCred     = root?.dataset?.turnCredential || '';
+
+    const servers = [
+      // Multiple Google STUN servers for resilience
+      { urls: 'stun:stun.l.google.com:19302' },
+      { urls: 'stun:stun1.l.google.com:19302' },
+      { urls: 'stun:stun2.l.google.com:19302' },
+      { urls: 'stun:stun3.l.google.com:19302' },
+    ];
+
+    if (turnUrl && turnUsername && turnCred) {
+      // Use configured TURN server (highest priority)
+      servers.push(
+        { urls: turnUrl,              username: turnUsername, credential: turnCred },
+        { urls: turnUrl.replace('turn:', 'turns:').replace(':3478', ':5349'),
+          username: turnUsername, credential: turnCred },
+      );
+    } else {
+      // ── Free public TURN relay via Open Relay Project ──────────────────────
+      // These are real, publicly accessible TURN servers. Rate-limited but work
+      // for low-traffic apps. Replace with a paid TURN service for production scale.
+      // https://openrelay.metered.ca/
+      servers.push(
+        {
+          urls: 'turn:openrelay.metered.ca:80',
+          username: 'openrelayproject',
+          credential: 'openrelayproject',
+        },
+        {
+          urls: 'turn:openrelay.metered.ca:443',
+          username: 'openrelayproject',
+          credential: 'openrelayproject',
+        },
+        {
+          urls: 'turn:openrelay.metered.ca:443?transport=tcp',
+          username: 'openrelayproject',
+          credential: 'openrelayproject',
+        },
+        {
+          urls: 'turns:openrelay.metered.ca:443',
+          username: 'openrelayproject',
+          credential: 'openrelayproject',
+        },
+      );
+    }
+
+    return servers;
   }
 
   function initConsultation(config) {
@@ -41,6 +112,8 @@
     let isConnected = false;
     let endingCall = false;
     let callEnded = false;
+    let iceRestartAttempts = 0;
+    const MAX_ICE_RESTARTS = 3;
 
     const remoteVideo = document.getElementById('remote-video');
     const localVideo = document.getElementById('local-video');
@@ -49,14 +122,16 @@
     const timerEl = document.getElementById('callTimer');
     const statusTitle = document.getElementById('remote-status-title') || remotePlaceholder?.querySelector('p.text-lg');
     const statusSubtitle = document.getElementById('remote-status-subtitle') || remotePlaceholder?.querySelector('p.text-sm');
+    const root = document.getElementById('video-call-container');
 
     const peerConfig = {
-      iceServers: [
-        { urls: 'stun:stun.l.google.com:19302' },
-        { urls: 'stun:stun1.l.google.com:19302' },
-        { urls: 'stun:stun2.l.google.com:19302' },
-      ],
+      iceServers: buildIceServers(root),
+      iceTransportPolicy: 'all',          // try STUN first; fall back to TURN relay
+      bundlePolicy: 'max-bundle',
+      rtcpMuxPolicy: 'require',
     };
+
+    log('ICE servers configured', peerConfig.iceServers.map(s => s.urls));
 
     function log(msg, extra) {
       if (extra !== undefined) {
@@ -77,7 +152,7 @@
       if (!remotePlaceholder || isConnected) return;
       remotePlaceholder.classList.remove('hidden', 'opacity-0');
       if (statusTitle) statusTitle.textContent = 'Connecting...';
-      if (statusSubtitle) statusSubtitle.textContent = '';
+      if (statusSubtitle) statusSubtitle.textContent = 'Establishing secure channel';
     }
 
     function setConnectedUI() {
@@ -160,45 +235,37 @@
     }
 
     async function verifyAndInitMedia() {
+      // HTTPS / secure context check (required in production)
+      const isSecure = location.protocol === 'https:' || location.hostname === 'localhost' || location.hostname === '127.0.0.1';
+      if (!isSecure) {
+        throw new Error('Video calls require a secure connection (HTTPS). Contact your administrator.');
+      }
+
       if (!navigator.mediaDevices?.getUserMedia) {
-        throw new Error('getUserMedia not supported');
+        throw new Error('Your browser does not support video calls. Please use Chrome, Edge, or Safari on iOS.');
       }
 
-      let cameraGranted = false;
-      let micGranted = false;
-      try {
-        const camPerm = await navigator.permissions?.query?.({ name: 'camera' });
-        const micPerm = await navigator.permissions?.query?.({ name: 'microphone' });
-        cameraGranted = camPerm?.state === 'granted';
-        micGranted = micPerm?.state === 'granted';
-        log('permission query', { camera: camPerm?.state, mic: micPerm?.state });
-      } catch (_) {
-        /* permissions API optional */
-      }
-
-      localStream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
-      log('local stream created');
+      localStream = await navigator.mediaDevices.getUserMedia({
+        video: { width: { ideal: 1280 }, height: { ideal: 720 }, facingMode: 'user' },
+        audio: { echoCancellation: true, noiseSuppression: true, sampleRate: 44100 },
+      });
+      log('local stream created', { tracks: localStream.getTracks().length });
 
       const audioTrack = localStream.getAudioTracks()[0];
       const videoTrack = localStream.getVideoTracks()[0];
 
-      if (!audioTrack || !videoTrack) {
-        throw new Error('Missing audio or video track');
+      if (!audioTrack && !videoTrack) {
+        throw new Error('No camera or microphone was found. Please check your device.');
       }
 
-      audioTrack.enabled = true;
-      videoTrack.enabled = true;
-
-      log('camera permission granted', { granted: cameraGranted, track: videoTrack.readyState });
-      log('mic permission granted', { granted: micGranted, track: audioTrack.readyState });
-      log('audio track active', { enabled: audioTrack.enabled, readyState: audioTrack.readyState });
-      log('video track active', { enabled: videoTrack.enabled, readyState: videoTrack.readyState });
-      log('stream exists', { id: localStream.id, tracks: localStream.getTracks().length });
+      if (audioTrack) audioTrack.enabled = true;
+      if (videoTrack) videoTrack.enabled = true;
 
       localVideo.srcObject = localStream;
       localVideo.muted = true;
       localVideo.autoplay = true;
       localVideo.playsInline = true;
+      localVideo.setAttribute('playsinline', 'true');
 
       remoteVideo.muted = false;
       remoteVideo.autoplay = true;
@@ -210,12 +277,15 @@
     }
 
     function createPeerConnection() {
+      if (peerConnection) {
+        try { peerConnection.close(); } catch (_) {}
+      }
       peerConnection = new RTCPeerConnection(peerConfig);
-      log('RTCPeerConnection created', peerConfig);
+      log('RTCPeerConnection created');
 
       localStream.getTracks().forEach((track) => {
         peerConnection.addTrack(track, localStream);
-        log('track added to peer connection', { kind: track.kind, enabled: track.enabled });
+        log('track added', { kind: track.kind, enabled: track.enabled });
       });
 
       peerConnection.onicecandidate = (event) => {
@@ -223,9 +293,10 @@
           log('ICE gathering complete');
           return;
         }
+        log('sending ICE candidate', { type: event.candidate.type });
         postSignal({ type: 'ice', candidate: event.candidate.toJSON() })
-          .then(() => log('ice candidate sent'))
-          .catch((err) => log('ice candidate send failed', err));
+          .then(() => log('ICE candidate sent'))
+          .catch((err) => log('ICE send failed', err));
       };
 
       peerConnection.ontrack = (event) => {
@@ -243,10 +314,20 @@
         remoteVideo.srcObject = remoteStream;
         remoteVideo.muted = false;
         remoteVideo.autoplay = true;
+        remoteVideo.playsInline = true;
+        remoteVideo.setAttribute('playsinline', 'true');
 
-        remoteVideo.play()
-          .then(() => log('remote video/audio playing'))
-          .catch((e) => log('remote play blocked', e));
+        // Resume on user gesture if autoplay was blocked
+        const playPromise = remoteVideo.play();
+        if (playPromise !== undefined) {
+          playPromise
+            .then(() => log('remote video/audio playing'))
+            .catch((e) => {
+              log('remote autoplay blocked — will retry on interaction', e);
+              // Show a "tap to continue" banner so users can unblock audio
+              showTapToPlayBanner();
+            });
+        }
       };
 
       peerConnection.onconnectionstatechange = async () => {
@@ -254,19 +335,103 @@
         log('connectionState', state);
 
         if (state === 'connected') {
+          iceRestartAttempts = 0;
           await onPeerConnected();
-        } else if (state === 'failed' || state === 'disconnected') {
+        } else if (state === 'failed') {
+          log('connection failed — attempting ICE restart');
           isConnected = false;
-          if (statusTitle && !remotePlaceholder.classList.contains('hidden')) {
-            statusTitle.textContent = 'Connection lost';
-            if (statusSubtitle) statusSubtitle.textContent = 'Try rejoining the call.';
+          if (statusTitle) {
+            remotePlaceholder?.classList.remove('hidden', 'opacity-0');
+            statusTitle.textContent = 'Connection lost — reconnecting...';
+            if (statusSubtitle) statusSubtitle.textContent = '';
           }
+          await attemptIceRestart();
+        } else if (state === 'disconnected') {
+          isConnected = false;
+          if (statusTitle && !remotePlaceholder?.classList.contains('hidden')) {
+            statusTitle.textContent = 'Connection interrupted';
+            if (statusSubtitle) statusSubtitle.textContent = 'Trying to reconnect...';
+          }
+          // Allow brief grace period before treating as failed
+          setTimeout(async () => {
+            if (peerConnection?.connectionState === 'disconnected') {
+              await attemptIceRestart();
+            }
+          }, 5000);
         }
       };
 
       peerConnection.oniceconnectionstatechange = () => {
         log('iceConnectionState', peerConnection.iceConnectionState);
       };
+
+      peerConnection.onicegatheringstatechange = () => {
+        log('iceGatheringState', peerConnection.iceGatheringState);
+      };
+    }
+
+    async function attemptIceRestart() {
+      if (iceRestartAttempts >= MAX_ICE_RESTARTS || callEnded || endingCall) {
+        if (statusTitle) {
+          statusTitle.textContent = 'Connection failed';
+          if (statusSubtitle) statusSubtitle.textContent = 'Please end and rejoin the call.';
+        }
+        showReconnectButton();
+        return;
+      }
+      iceRestartAttempts++;
+      log(`ICE restart attempt ${iceRestartAttempts}/${MAX_ICE_RESTARTS}`);
+
+      try {
+        if (isInitiator && peerConnection) {
+          // Restart ICE as initiator: create new offer with iceRestart flag
+          const offer = await peerConnection.createOffer({ iceRestart: true });
+          await peerConnection.setLocalDescription(offer);
+          offerCreated = false; // allow re-sending
+          answerHandled = false;
+          offerHandled = false;
+          await postSignal({
+            type: 'offer',
+            sdp: { type: peerConnection.localDescription.type, sdp: peerConnection.localDescription.sdp },
+            ice_restart: true,
+          });
+          offerCreated = true;
+          log('ICE restart offer sent');
+        }
+      } catch (e) {
+        log('ICE restart failed', e);
+      }
+    }
+
+    function showReconnectButton() {
+      const existing = document.getElementById('reconnectBtn');
+      if (existing) return;
+      const placeholder = document.getElementById('remote-placeholder');
+      if (!placeholder) return;
+      const btn = document.createElement('button');
+      btn.id = 'reconnectBtn';
+      btn.type = 'button';
+      btn.textContent = 'Rejoin Call';
+      btn.className = 'mt-4 px-5 py-2.5 bg-blue-600 text-white rounded-xl text-sm font-semibold hover:bg-blue-700 transition';
+      btn.onclick = () => { window.location.reload(); };
+      placeholder.appendChild(btn);
+    }
+
+    function showTapToPlayBanner() {
+      const existing = document.getElementById('tapToPlayBanner');
+      if (existing) return;
+      const container = document.getElementById('video-call-container');
+      if (!container) return;
+      const banner = document.createElement('div');
+      banner.id = 'tapToPlayBanner';
+      banner.className = 'absolute inset-x-0 bottom-28 flex justify-center z-40';
+      banner.innerHTML = `
+        <button type="button"
+          class="px-5 py-2.5 bg-white/90 text-slate-800 rounded-2xl text-sm font-semibold shadow-xl flex items-center gap-2"
+          onclick="document.getElementById('remote-video').play();this.closest('#tapToPlayBanner').remove()">
+          <i class='fas fa-volume-up'></i> Tap to enable audio
+        </button>`;
+      container.appendChild(banner);
     }
 
     async function flushPendingIce() {
@@ -275,9 +440,9 @@
       for (const cand of batch) {
         try {
           await peerConnection.addIceCandidate(new RTCIceCandidate(cand));
-          log('ice candidate received (flushed)');
+          log('ICE candidate received (flushed from queue)');
         } catch (e) {
-          log('ice candidate add failed', e);
+          log('ICE candidate add failed', e);
         }
       }
     }
@@ -293,7 +458,7 @@
         }
         try {
           await peerConnection.addIceCandidate(new RTCIceCandidate(cand));
-          log('ice candidate received');
+          log('ICE candidate applied');
         } catch (e) {
           log('addIceCandidate error', e);
         }
@@ -412,9 +577,18 @@
       } catch (e) {
         if (connOverlay) connOverlay.classList.add('hidden');
         log('media init failed', e);
-        const msg = e.name === 'NotAllowedError'
-          ? 'Please allow camera and microphone access in your browser settings, then click Join again.'
-          : 'Camera and microphone are required for the consultation. Check that no other app is using them.';
+
+        let msg = e.message || 'Camera and microphone are required for the consultation.';
+        if (e.name === 'NotAllowedError' || e.name === 'PermissionDeniedError') {
+          msg = 'Camera and microphone access was denied. Please allow permissions in your browser settings, then click Join again.';
+        } else if (e.name === 'NotFoundError' || e.name === 'DevicesNotFoundError') {
+          msg = 'No camera or microphone detected. Please connect a device and try again.';
+        } else if (e.name === 'NotReadableError' || e.name === 'TrackStartError') {
+          msg = 'Camera or microphone is in use by another app. Please close other apps and try again.';
+        } else if (e.name === 'OverconstrainedError') {
+          msg = 'Camera settings are not supported on this device. Please try a different browser.';
+        }
+
         if (typeof showToast === 'function') {
           showToast('error', 'Media Access Required', msg);
         }
@@ -428,36 +602,26 @@
       setWaitingForPeer();
 
       timerInterval = setInterval(updateTimer, 1000);
-      pollTimer = setInterval(() => pollSignaling(), 800);
+      pollTimer = setInterval(() => pollSignaling(), 1000);
       await pollSignaling();
     }
 
     function cleanup() {
-      if (pollTimer) {
-        clearInterval(pollTimer);
-        pollTimer = null;
-      }
-      if (timerInterval) {
-        clearInterval(timerInterval);
-        timerInterval = null;
-      }
+      if (pollTimer) { clearInterval(pollTimer); pollTimer = null; }
+      if (timerInterval) { clearInterval(timerInterval); timerInterval = null; }
       try {
         peerConnection?.getSenders()?.forEach((sender) => {
-          try { sender.track?.stop(); } catch (_) { /* ignore */ }
+          try { sender.track?.stop(); } catch (_) {}
         });
         peerConnection?.close();
-      } catch (_) { /* ignore */ }
+      } catch (_) {}
       peerConnection = null;
       if (localStream) {
-        localStream.getTracks().forEach((t) => {
-          try { t.stop(); } catch (_) { /* ignore */ }
-        });
+        localStream.getTracks().forEach((t) => { try { t.stop(); } catch (_) {} });
         localStream = null;
       }
       if (remoteStream) {
-        remoteStream.getTracks().forEach((t) => {
-          try { t.stop(); } catch (_) { /* ignore */ }
-        });
+        remoteStream.getTracks().forEach((t) => { try { t.stop(); } catch (_) {} });
         remoteStream = null;
       }
       if (remoteVideo) remoteVideo.srcObject = null;
@@ -523,9 +687,7 @@
       if (endBtn) {
         endBtn.disabled = true;
         endBtn.classList.add('opacity-60', 'cursor-not-allowed');
-        if (endIcon) {
-          endIcon.className = 'fas fa-spinner fa-spin text-xl';
-        }
+        if (endIcon) endIcon.className = 'fas fa-spinner fa-spin text-xl';
         endBtn.title = 'Ending consultation...';
       }
 
@@ -583,6 +745,11 @@
       const track = localStream?.getAudioTracks()[0];
       if (!track) return;
       track.enabled = !track.enabled;
+      const icon = this.querySelector('i');
+      if (icon) {
+        icon.className = track.enabled ? 'fas fa-microphone' : 'fas fa-microphone-slash';
+      }
+      this.classList.toggle('bg-red-500/30', !track.enabled);
       log('mic toggled', { enabled: track.enabled });
     });
 
@@ -590,6 +757,11 @@
       const track = localStream?.getVideoTracks()[0];
       if (!track) return;
       track.enabled = !track.enabled;
+      const icon = this.querySelector('i');
+      if (icon) {
+        icon.className = track.enabled ? 'fas fa-video' : 'fas fa-video-slash';
+      }
+      this.classList.toggle('bg-red-500/30', !track.enabled);
       log('camera toggled', { enabled: track.enabled });
     });
 

@@ -1,0 +1,46 @@
+###############################################################
+#  SmartTrack — Render.com deployment configuration
+#  Place this file in your project root (same level as manage.py)
+###############################################################
+services:
+  - type: web
+    name: smarttrack
+    runtime: python
+    buildCommand: "pip install -r requirements.txt && python manage.py collectstatic --noinput && python manage.py migrate --noinput"
+    startCommand: "gunicorn smarttrack.wsgi:application --bind 0.0.0.0:$PORT --workers 2 --timeout 120 --log-level info"
+    envVars:
+      - key: DEBUG
+        value: "False"
+      - key: SECRET_KEY
+        generateValue: true           # Render generates a secure random value
+      - key: ALLOWED_HOSTS
+        value: "*"                    # Or set your Render URL explicitly
+      - key: PYTHON_VERSION
+        value: "3.11.0"
+      # Database — uncomment and configure if using PostgreSQL:
+      # - key: DB_ENGINE
+      #   value: django.db.backends.postgresql
+      # - key: DB_NAME
+      #   fromDatabase:
+      #     name: smarttrack-db
+      #     property: database
+      # - key: DB_USER
+      #   fromDatabase:
+      #     name: smarttrack-db
+      #     property: user
+      # - key: DB_PASSWORD
+      #   fromDatabase:
+      #     name: smarttrack-db
+      #     property: password
+      # - key: DB_HOST
+      #   fromDatabase:
+      #     name: smarttrack-db
+      #     property: host
+
+      # TURN server for WebRTC — fill in after registering at metered.ca or coturn:
+      # - key: TURN_URL
+      #   value: "turn:your-turn-server.com:3478"
+      # - key: TURN_USERNAME
+      #   value: "your-turn-username"
+      # - key: TURN_CREDENTIAL
+      #   value: "your-turn-credential"

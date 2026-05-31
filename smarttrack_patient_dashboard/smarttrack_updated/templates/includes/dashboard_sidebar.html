@@ -1,7 +1,11 @@
 {% load static %}
 <aside id="sidebar" class="fixed left-0 top-0 h-full w-64 bg-gradient-to-b from-slate-900 to-slate-800 text-white z-50 transition-transform duration-300 flex flex-col shadow-2xl">
-  <div class="p-6 border-b border-slate-700">
-    <div class="flex items-center gap-3">
+  <div class="p-6 border-b border-slate-700 relative">
+    <!-- Close button — visible only on mobile (hidden on desktop via CSS) -->
+    <button onclick="closeSidebar()" class="sidebar-close-btn absolute top-4 right-4 p-2 rounded-lg hover:bg-white/10 text-slate-400 hover:text-white transition" aria-label="Close menu">
+      <i class="fas fa-times text-base"></i>
+    </button>
+    <div class="flex items-center gap-3 pr-8">
       <div class="w-10 h-10 bg-gradient-to-br from-blue-500 to-violet-600 rounded-xl flex items-center justify-center shadow-lg">
         <i class="fas fa-heartbeat text-white text-lg"></i>
       </div>

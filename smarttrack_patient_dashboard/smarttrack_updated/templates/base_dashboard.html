@@ -26,8 +26,12 @@
 <form style="display:none">{% csrf_token %}</form>
 <div class="flex min-h-screen">
   {% include 'includes/dashboard_sidebar.html' %}
+
+  <!-- Mobile sidebar backdrop: dims content when sidebar is open -->
+  <div id="sidebarBackdrop" onclick="closeSidebar()" aria-hidden="true"></div>
+
   <!-- Main Content -->
-  <main class="flex-1 ml-64 min-h-screen bg-slate-50">
+  <main class="flex-1 min-h-screen bg-slate-50 w-full min-w-0">
     <!-- Top Bar -->
     <header class="bg-white border-b border-slate-200 px-6 py-4 flex items-center justify-between sticky top-0 z-30 shadow-sm">
       {% if caregiver_mode and caregiver_acting_for %}
@@ -136,12 +140,51 @@
 {% endif %}
 
 <script>
+/* ── Sidebar toggle (mobile / tablet) ── */
+function openSidebar() {
+  const sb = document.getElementById('sidebar');
+  const bd = document.getElementById('sidebarBackdrop');
+  if (!sb) return;
+  sb.classList.add('sidebar-open');
+  if (bd) bd.classList.add('active');
+  document.body.style.overflow = 'hidden'; // prevent background scroll
+}
+function closeSidebar() {
+  const sb = document.getElementById('sidebar');
+  const bd = document.getElementById('sidebarBackdrop');
+  if (!sb) return;
+  sb.classList.remove('sidebar-open');
+  if (bd) bd.classList.remove('active');
+  document.body.style.overflow = '';
+}
 function toggleSidebar() {
   const sb = document.getElementById('sidebar');
-  sb.classList.toggle('-translate-x-full');
+  if (!sb) return;
+  if (sb.classList.contains('sidebar-open')) {
+    closeSidebar();
+  } else {
+    openSidebar();
+  }
 }
 
+/* Auto-close sidebar when a nav link is clicked on mobile */
 document.addEventListener('DOMContentLoaded', () => {
+  if (window.innerWidth < 1024) {
+    document.querySelectorAll('#sidebar .sidebar-link, #sidebar a').forEach(link => {
+      link.addEventListener('click', () => {
+        setTimeout(closeSidebar, 80);
+      });
+    });
+  }
+
+  /* Close on resize to desktop */
+  window.addEventListener('resize', () => {
+    if (window.innerWidth >= 1024) {
+      closeSidebar();
+      document.body.style.overflow = '';
+    }
+  });
+
   const backdrop = document.getElementById('notifBackdrop');
   const closeBtn = document.getElementById('notifDrawerClose');
   if (backdrop) backdrop.addEventListener('click', () => { if (window.toggleNotifDrawer) toggleNotifDrawer(); });

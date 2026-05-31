@@ -164,11 +164,9 @@ input:focus, textarea:focus, select:focus {
   box-shadow: 0 8px 25px rgba(0,0,0,0.08);
 }
 
-/* ─── Responsive ─── */
-@media (max-width: 768px) {
-  main.ml-64 { margin-left: 0 !important; }
-  #sidebar { transform: translateX(-100%); }
-  #sidebar.open { transform: translateX(0); }
+/* ─── Mobile base: sidebar hidden, no main offset (see mobile_responsive.css for full rules) ─── */
+@media (max-width: 1023px) {
+  main { margin-left: 0 !important; }
 }
 
 /* ─── Medicine Color Labels ─── */
